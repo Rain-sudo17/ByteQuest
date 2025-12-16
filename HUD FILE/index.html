@@ -1,0 +1,2362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ByteQuest Learning HUB</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    
+    <style>
+        /* === BACKGROUND & GENERAL STYLES === */
+        body { background: #010a12; overflow-x: hidden; min-height: 100vh; font-family: monospace; }
+        .animated-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #010a12;
+            background-image:
+                linear-gradient(270deg, #010a12, #051622, #010a12),
+                repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0, 255, 255, 0.08) 1px, rgba(0, 255, 255, 0.08) 2px),
+                repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0, 255, 255, 0.08) 1px, rgba(0, 255, 255, 0.08) 2px);
+            z-index: -1;
+            background-size: 600% 600%, 25px 25px, 25px 25px;
+            animation: move-all 16s linear infinite;
+        }
+        @keyframes move-all { 0% { background-position: 0% 50%, 0 0, 0 0; } 50% { background-position: 100% 50%, 250px 250px, 250px 250px; } 100% { background-position: 0% 50%, 500px 500px, 500px 500px; } }
+
+        /* === HUD & UI STYLES === */
+        .hud { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.2); box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); animation: float 6s ease-in-out infinite; }
+        .glow { box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); }
+
+        /* === NAVIGATION BUTTONS === */
+        .nav-btn {
+            min-width: 140px; 
+            padding: 10px 15px;
+            margin: 0 5px;
+            text-align: center;
+            display: flex; justify-content: center; align-items: center;
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px; color: #67e8f9; font-weight: bold; font-size: 1.1rem;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .nav-btn:hover {
+            background: rgba(6, 182, 212, 0.2); border-color: #00FFFF; color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); transform: translateY(-2px);
+        }
+        .active-nav-btn {
+            background: rgba(6, 182, 212, 0.25) !important; border-color: #00FFFF !important;
+            color: #ffffff !important; box-shadow: 0 0 20px rgba(0, 255, 255, 0.6) !important;
+        }
+
+        /* === CONTAINERS === */
+        .nav-action-container {
+            border: 1px solid rgba(0, 255, 255, 0.5); background: rgba(0, 20, 30, 0.6);
+            padding: 8px 12px; border-radius: 12px;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); margin-top: 10px;
+        }
+        @media (min-width: 768px) { .nav-action-container { margin-top: 0; } }
+
+        .auth-item-container {
+            background: rgba(0, 10, 20, 0.6); border: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 15px; border-radius: 10px; margin-bottom: 12px;
+            transition: transform 0.2s, border-color 0.2s;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .auth-item-container:hover {
+            border-color: #00FFFF; box-shadow: 0 0 10px rgba(0, 255, 255, 0.2); background: rgba(0, 20, 40, 0.8);
+        }
+        
+        .file-input-wrapper { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        input[type="file"]::file-selector-button {
+            background-color: rgba(6, 182, 212, 0.3); border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px; color: #67e8f9; font-weight: bold; padding: 10px 15px;
+            transition: all 0.3s ease; cursor: pointer; margin-right: 10px;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: rgba(6, 182, 212, 0.2); border-color: #00FFFF; color: #ffffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+        }
+
+        .avatar-container {
+            display: flex; justify-content: center; align-items: center;
+            width: 80px; height: 80px; border-radius: 50%; overflow: hidden;
+            border: 2px solid rgba(6, 182, 212, 0.5); background-color: rgba(0, 0, 0, 0.3);
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .avatar-container img { width: 100%; height: auto; object-fit: cover; }
+        .avatar-container:hover, .avatar-container.selected {
+            border-color: #00FFFF; box-shadow: 0 0 15px rgba(0, 255, 255, 0.6); transform: scale(1.1);
+        }
+
+        /* === SETTINGS DROPDOWN === */
+        .settings-dropdown {
+            position: absolute;
+            top: 130%; 
+            right: -10px; 
+            margin-top: 0.5rem;
+            width: 220px; 
+            background: rgba(1, 10, 18, 0.95);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            display: none; 
+            z-index: 60; 
+        }
+        .settings-dropdown.active { display: block; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* === LEARNING PATH === */
+        .learning-path-wrapper { position: relative; width: 100%; max-width: 500px; height: 500px; margin: 40px auto 0 auto; display: flex; justify-content: center; }
+        .learning-path-label {
+            position: absolute; top: -40px; left: 50%; transform: translateX(-50%); z-index: 50;
+            background: rgba(0, 0, 0, 0.8); border: 1px solid #00FFFF; padding: 5px 20px; border-radius: 5px;
+            color: #00FFFF; font-weight: bold; font-size: 1rem; box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .hex-container { position: relative; width: 450px; height: 450px; z-index: 10; }
+        .hex { 
+            position: absolute; width: 90px; aspect-ratio: 1 / 0.866; background: rgba(0, 255, 255, 0.05); 
+            clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); 
+            box-shadow: inset 0 0 0 2px rgba(0, 255, 255, 0.3); transition: all 0.3s ease; cursor: pointer; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; 
+            padding: 2px; z-index: 20; font-size: 0.7rem; line-height: 1.1; color: #a5f3fc;
+        }
+        .hex span.module-label { font-weight: bold; display: block; margin-bottom: 2px; font-size: 0.8rem; color: white; }
+        .hex:hover { background: rgba(0, 255, 255, 0.25); transform: scale(1.1); z-index: 30; box-shadow: inset 0 0 0 2px #00FFFF, 0 0 15px rgba(0, 255, 255, 0.5); color: white; }
+        .hex.completed-hex { background: rgba(34, 197, 94, 0.25); box-shadow: inset 0 0 0 2px #22c55e, 0 0 15px rgba(34, 197, 94, 0.4); color: #dcfce7; }
+        
+        .hex[data-index="1"] { top: 20px; left: 180px; } .hex[data-index="2"] { top: 100px; left: 95px; } .hex[data-index="3"] { top: 100px; left: 265px; }
+        .hex[data-index="4"] { top: 180px; left: 10px; } .hex[data-index="5"] { top: 180px; left: 180px; } .hex[data-index="6"] { top: 180px; left: 350px; }
+        .hex[data-index="7"] { top: 260px; left: 95px; } .hex[data-index="8"] { top: 260px; left: 265px; } .hex[data-index="9"] { top: 340px; left: 180px; }
+        .hex-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+        .hex-lines path { stroke: #0e7490; stroke-width: 2; fill: none; stroke-dasharray: 6 4; opacity: 0.3; transition: all 0.5s ease; }
+        .hex-lines path.active-path { stroke: #00FFFF; opacity: 1; stroke-dasharray: none; stroke-width: 3; filter: drop-shadow(0 0 5px #00FFFF); }
+        #hex-completion-message { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+        .all-modules-complete .hex, .all-modules-complete .hex-lines { display: none; }
+        .all-modules-complete #hex-completion-message { display: flex; animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* === GENERAL UI === */
+        .modal-bg { background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); }
+        .profile-img-container { border: 2px solid rgba(0, 255, 255, 0.5); border-radius: 50%; padding: 2px; box-shadow: 0 0 10px rgba(0, 255, 255, 0.7); cursor: pointer; transition: transform 0.2s ease; }
+        .profile-img-container:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(0, 255, 255, 0.9); }
+        
+        .game-selection-item { background-color: rgba(0, 255, 255, 0.05); border: 1px solid rgba(0, 255, 255, 0.2); padding: 1.5rem; border-radius: 0.5rem; text-align: center; cursor: pointer; transition: all 0.2s ease; }
+        .game-selection-item:hover { background-color: rgba(0, 255, 255, 0.1); transform: translateY(-2px); box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); }
+        .game-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+        
+        /* Updated .game-hud for Default Usage (flex row for scorebars) */
+        .game-hud { backdrop-filter: blur(5px); background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(0, 255, 255, 0.1); padding: 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+        
+        .btn { padding: 0.5rem 1rem; border-radius: 0.25rem; font-weight: 600; transition: all 0.2s; }
+        .btn-cyan { background-color: rgba(6, 182, 212, 0.3); } .btn-cyan:hover { background-color: rgba(6, 182, 212, 0.5); }
+        .btn-gold { background: rgba(234, 179, 8, 0.3); color: #fde047; } .btn-gold:hover { background: rgba(234, 179, 8, 0.5); }
+        .btn-red { background-color: rgba(239, 68, 68, 0.3); } .btn-red:hover { background-color: rgba(239, 68, 68, 0.5); }
+        .btn-green { background-color: rgba(34, 197, 94, 0.3); border: 1px solid rgba(34, 197, 94, 0.6); color: #86efac; }
+        .btn-green:hover { background-color: rgba(34, 197, 94, 0.5); box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+        .hidden { display: none !important; }
+        .btn-icon { background: rgba(0, 255, 255, 0.1); border: 1px solid rgba(0, 255, 255, 0.3); color: #00FFFF; padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.2s; }
+        .btn-icon:hover { background: rgba(0, 255, 255, 0.3); transform: rotate(45deg); box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+
+        /* === CONCEPT MATCH SPECIFIC STYLES === */
+        .cm-card { min-height: 80px; font-weight: bold; font-size: 0.9rem; cursor: pointer; perspective: 1000px; }
+        .cm-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; border-radius: 0.5rem; min-height: 80px; }
+        .cm-card.flipped .cm-card-inner { transform: rotateY(180deg); }
+        .cm-card-front, .cm-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; padding: 0.5rem; }
+        .cm-card-front { background-color: rgba(6, 182, 212, 0.1); border: 2px solid rgba(6, 182, 212, 0.3); color: #00FFFF; font-size: 1.5rem; }
+        .cm-card-back { background-color: rgba(0, 20, 30, 0.9); border: 2px solid #00FFFF; color: #ffffff; transform: rotateY(180deg); }
+        .cm-card-back.matched { background-color: rgba(34, 197, 94, 0.6); border-color: #22c55e; }
+        .cm-card-back.mismatch { background-color: rgba(239, 68, 68, 0.6); border-color: #ef4444; }
+
+        /* === THREAT WHACK FLOATING TEXT === */
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
+        .float-up { animation: floatUp 0.8s ease-out forwards; }
+
+        /* === LOGIN PUZZLE TERMINAL STYLES === */
+        .typing-cursor::after { content: '▋'; display: inline-block; animation: blink 1s infinite; color: #22c55e; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .lp-option-card { transition: all 0.2s ease; cursor: pointer; border: 1px solid rgba(6, 182, 212, 0.3); background: rgba(6, 182, 212, 0.05); }
+        .lp-option-card:hover { transform: translateY(-2px); border-color: #00FFFF; background: rgba(6, 182, 212, 0.2); box-shadow: 0 4px 15px rgba(0, 255, 255, 0.2); }
+
+        /* === DECRYPTOR STYLES === */
+        .glitch-text { text-shadow: 2px 2px 0px rgba(0, 255, 255, 0.2), -2px -2px 0px rgba(255, 0, 255, 0.2); animation: glitch 2s infinite linear alternate-reverse; }
+        @keyframes glitch { 0% { opacity: 1; } 98% { opacity: 1; transform: skewX(0deg); } 99% { opacity: 0.8; transform: skewX(20deg); } 100% { opacity: 1; transform: skewX(0deg); } }
+        .decrypt-opt { background: rgba(0, 0, 0, 0.6); border: 1px solid #00FFFF; color: #00FFFF; font-family: monospace; padding: 10px; transition: all 0.2s; position: relative; overflow: hidden; }
+        .decrypt-opt:hover { background: rgba(0, 255, 255, 0.2); box-shadow: 0 0 10px rgba(0, 255, 255, 0.4); }
+        .decrypt-opt.correct { background: rgba(34, 197, 94, 0.3); border-color: #22c55e; color: #86efac; }
+        .decrypt-opt.wrong { background: rgba(239, 68, 68, 0.3); border-color: #ef4444; color: #fca5a5; }
+
+        /* === SAFE CLICK STYLES === */
+        .sc-card {
+            background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 0.5rem;
+            padding: 1rem; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            transition: all 0.3s; position: relative; overflow: hidden; min-height: 140px;
+        }
+        .sc-card:hover { border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+        .sc-card.safe-confirmed { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+        .sc-card.threat-detected { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .sc-scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: #00FFFF; box-shadow: 0 0 10px #00FFFF; opacity: 0; }
+        @keyframes scanAnim { 0% { top: 0; opacity: 1; } 100% { top: 100%; opacity: 0; } }
+        .sc-card.scanning .sc-scan-line { animation: scanAnim 0.5s linear; }
+
+    </style>
+</head>
+<body class="text-cyan-300">
+
+    <div class="animated-bg"></div>
+
+    <div id="auth-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center text-cyan-300 z-50 p-4">
+    <div class="hud rounded-xl p-8 w-11/12 max-w-xs text-center relative">
+        <h1 class="text-2xl font-bold mb-4 text-cyan-400">ACCESS PORTAL</h1>
+        <button id="close-auth-modal" class="absolute top-3 right-3 text-xl hover:text-red-400">&times;</button>
+        
+        <div id="login-fields-container">
+            <input id="login-email" type="email" placeholder="Email (tup.edu.ph)" class="w-full mb-3 p-2 rounded bg-transparent border border-cyan-500 text-center focus:outline-none focus:ring-1 focus:ring-cyan-500" />
+            
+            <div class="relative w-full mb-3">
+                <input id="login-password" type="password" placeholder="Password" class="w-full p-2 rounded bg-transparent border border-cyan-500 text-center focus:outline-none focus:ring-1 focus:ring-cyan-500 pr-10" />
+                <button type="button" id="toggle-login-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-cyan-500 hover:text-white" tabindex="-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex flex-col gap-4 mt-6">
+                <div class="auth-item-container">
+                    <button id="perform-login-btn" class="btn btn-cyan w-full font-bold">Sign In</button>
+                </div>
+                
+                <div class="auth-item-container">
+                    <div id="go-to-signup-btn" class="text-xs cursor-pointer hover:text-white underline text-center font-bold w-full">New Agent? Create an Account</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="otp-verify-container" class="hidden">
+            <p class="text-sm text-green-400 mb-2 font-bold">PASSWORD ACCEPTED</p>
+            <p class="text-xs text-yellow-200 mb-4 animate-pulse">2FA CODE SENT TO EMAIL</p>
+            
+            <input id="otp-code-input" type="text" placeholder="######" class="w-full mb-4 p-3 rounded bg-black/50 border border-yellow-400 text-center text-2xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+            
+            <div class="auth-item-container mb-3">
+                <button id="verify-otp-btn" class="btn btn-green w-full font-bold text-lg">VERIFY IDENTITY</button>
+            </div>
+            <button id="cancel-otp-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Cancel Transaction</button>
+        </div>
+
+        <p id="login-msg" class="mt-4 text-sm text-cyan-400 font-bold min-h-[20px]"></p>
+    </div>
+</div>
+
+    <div id="hud" class="hud glow rounded-2xl p-4 sm:p-8 w-[95%] max-w-7xl mx-auto my-5 sm:my-10 relative z-10 transition-all duration-300">
+        
+        <nav id="main-nav" class="flex flex-col md:flex-row md:justify-between items-center mb-6 border-b border-cyan-500/30 pb-3 relative">
+            <div class="flex flex-col text-center space-y-2 md:space-y-0 md:flex-row md:text-left md:space-x-8">
+                <button data-view="home" class="nav-btn transition duration-200 active-nav-btn">HOME</button>
+                <button data-view="about" class="nav-btn transition duration-200">ABOUT</button>
+                <button data-view="quests" class="nav-btn transition duration-200">QUESTS</button>
+                <button data-view="dashboard" class="nav-btn transition duration-200">DASHBOARD</button>
+                <button data-view="leaderboard" class="nav-btn transition duration-200">LEADERBOARD</button>
+                <button data-view="minigames" class="nav-btn transition duration-200">MINI GAMES</button>
+            </div>
+            <div class="flex items-center gap-4 mt-4 md:mt-0">
+                <div class="nav-action-container" id="login-container">
+                    <button id="login-portal-btn" class="btn btn-cyan btn-nav font-bold">LOGIN PORTAL</button>
+                </div>
+                <div id="account-settings-container" class="hidden relative">
+                    <button id="settings-toggle-btn" class="btn-icon" title="Account Settings">⚙️</button>
+                    <div id="settings-dropdown" class="settings-dropdown text-left">
+                        <div class="p-2 border-b border-cyan-500/30 mb-2"><p class="text-xs text-cyan-500 font-bold">ACCOUNT</p></div>
+                        <button id="nav-edit-profile" class="w-full text-left p-2 hover:bg-cyan-500/20 text-cyan-300 rounded transition flex items-center gap-2"><span>👤</span> Edit Profile</button>
+                        <button id="nav-security" class="w-full text-left p-2 hover:bg-cyan-500/20 text-cyan-300 rounded transition flex items-center gap-2"><span>🛡️</span> Security / Passkey</button>
+                        <button id="logout-btn" class="w-full text-left p-2 hover:bg-red-500/20 text-red-400 rounded transition flex items-center gap-2"><span>🚪</span> Log Out</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div id="views-container">
+            
+            <div id="signup-view" class="hidden">
+    <h2 class="text-3xl font-bold text-center text-cyan-300 mb-6">NEW AGENT REGISTRATION</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="hud p-6 rounded-xl overflow-y-auto max-h-[650px] text-sm">
+            <h3 class="text-xl font-bold text-center mb-6 text-cyan-400 border-b border-cyan-500/30 pb-2">SECURITY RULES & GUIDELINES</h3>
+            <div class="rule-card mb-6">
+                <span class="rule-title font-bold text-yellow-400 text-lg block mb-2">🔑 Password Rules</span>
+                <ul class="text-left list-disc list-inside text-cyan-200/80 space-y-1">
+                    <li>At least 10 characters long</li>
+                    <li>Includes Uppercase letters (A-Z)</li>
+                    <li>Includes Lowercase letters (a-z)</li>
+                    <li>Includes Numbers (0-9)</li>
+                    <li>Includes Special Symbols (!@#$%^&*)</li>
+                </ul>
+            </div>
+            <div class="rule-card">
+                <span class="rule-title font-bold text-red-400 text-lg block mb-2">🛡️ Account Security Rules</span>
+                <ul class="text-left list-none text-cyan-200/80 space-y-3">
+                    <li><strong class="text-cyan-400">Email Verification:</strong> You must verify your student email to unlock quizzes.</li>
+                    <li><strong class="text-cyan-400">One Account Per Student:</strong> Multiple accounts prohibited.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="flex flex-col justify-center">
+            <div class="hud p-8 rounded-xl w-full max-w-md mx-auto relative">
+                
+                <div id="signup-form-container">
+                    <h3 class="text-xl font-bold mb-4 text-center">Create Your Account</h3>
+                    
+                    <input id="signup-email" type="email" placeholder="e.g. name@tup.edu.ph" class="w-full mb-3 p-3 rounded bg-black/30 border border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500" />
+                    <input id="signup-username" type="text" placeholder="Choose a codename" class="w-full mb-3 p-3 rounded bg-black/30 border border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500" />
+                    
+                    <div class="mb-4">
+                        <div class="relative w-full">
+                            <input id="signup-password" type="password" placeholder="Min 10 chars, Upper, Number, Symbol" class="w-full p-3 rounded bg-black/30 border border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 pr-10" />
+                            <button type="button" id="toggle-signup-password" class="absolute right-3 top-3 text-cyan-500 hover:text-white" tabindex="-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="password-strength-msg" class="h-4"></div>
+                    </div>
+
+                    <div class="flex items-start gap-2 mb-4">
+                        <input type="checkbox" id="terms-check" class="mt-1">
+                        <label for="terms-check" class="text-xs text-gray-300">I have read and agree to the Security Rules.</label>
+                    </div>
+                    
+                    <div class="auth-item-container mb-3">
+                        <button id="do-signup-btn" class="btn btn-green w-full py-2 font-bold text-lg">SEND VERIFICATION CODE</button>
+                    </div>
+                    
+                    <button id="cancel-signup-btn" class="btn btn-red w-full py-2 text-sm">Cancel / Back to Login</button>
+                </div>
+
+                <div id="signup-otp-container" class="hidden text-center">
+                    <h3 class="text-2xl font-bold mb-2 text-yellow-400 animate-pulse">VERIFY EMAIL</h3>
+                    <p class="text-xs text-gray-300 mb-6">Enter the code sent to your TUP email to activate your account and enable 2FA.</p>
+                    
+                    <input id="signup-otp-input" type="text" placeholder="######" class="w-full mb-6 p-4 rounded bg-black/50 border border-yellow-400 text-center text-3xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+                    
+                    <div class="auth-item-container mb-3">
+                        <button id="confirm-signup-btn" class="btn btn-green w-full py-3 font-bold text-lg">ACTIVATE ACCOUNT</button>
+                    </div>
+                    <button id="back-signup-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Wrong Email? Go Back</button>
+                </div>
+
+                <p id="signup-msg" class="mt-4 text-center text-sm font-bold min-h-[1.5rem]"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <div id="home-view" class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                <div class="flex flex-col items-start space-y-4">
+                    <div class="flex items-center gap-4">
+                        <div id="profile-img-container" class="profile-img-container relative group">
+                            <img id="profile-img" src="https://api.dicebear.com/8.x/pixel-art/svg?seed=guest" class="w-12 h-12 rounded-full object-cover border-2 border-cyan-700/50" alt="Profile Icon" />
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2"><h2 id="profile-name" class="text-2xl font-bold">GUEST_OBSERVER</h2></div>
+                            <p class="text-cyan-400 text-sm"><span id="profile-level">LEVEL 0</span> | RANK: <span id="profile-rank">OBSERVER</span></p>
+                        </div>
+                    </div>
+                    <div class="w-full bg-cyan-800/30 h-3 rounded-full"><div id="xp-bar" class="bg-cyan-400 h-3 rounded-full w-[0%] transition-all duration-700"></div></div>
+                    <p class="text-sm">XP: <span id="xp">0</span> / <span id="xp-next-level">100</span></p>
+                    <div class="mt-4 w-full">
+                        <h4 class="text-lg font-semibold mb-2 text-cyan-400 border-b border-cyan-400/30 pb-1">EARNED BADGES 🏅</h4>
+                        <div id="earned-badges" class="flex flex-wrap gap-3 p-2 bg-cyan-900/10 rounded-lg min-h-[4rem]"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="learning-path-wrapper">
+                        <div class="learning-path-label">LEARNING PATH</div>
+                        <div class="hex-container">
+                            <svg class="hex-lines" viewBox="0 0 450 450">
+                                <path id="line-m1-m2" d="M 225 60 L 135 135"></path><path id="line-m1-m3" d="M 225 60 L 315 135"></path>
+                                <path id="line-m2-m4" d="M 135 135 L 45 215"></path><path id="line-m2-m5" d="M 135 135 L 225 215"></path>
+                                <path id="line-m3-m5" d="M 315 135 L 225 215"></path><path id="line-m3-m6" d="M 315 135 L 405 215"></path>
+                                <path id="line-m4-m7" d="M 45 215 L 135 295"></path>
+                                <path id="line-m5-m7" d="M 225 215 L 135 295"></path><path id="line-m5-m8" d="M 225 215 L 315 295"></path>
+                                <path id="line-m6-m8" d="M 405 215 L 315 295"></path>
+                                <path id="line-m7-m9" d="M 135 295 L 225 375"></path><path id="line-m8-m9" d="M 315 295 L 225 375"></path>
+                            </svg>
+                            <div id="hex-completion-message" class="flex flex-col items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-64 h-64 mb-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 25px #00FFFF);">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(0, 255, 255, 0.15)"></path>
+                                <path d="M9 12l2 2 4-4" stroke="#00FFFF" stroke-width="3"></path>
+                            </svg>
+                                <h3 class="text-3xl font-bold text-cyan-300 tracking-widest" style="text-shadow: 0 0 15px rgba(0,255,255,0.8);">SYSTEM SECURED</h3>
+                                <p class="text-cyan-500 text-lg mt-2 font-mono">ALL MODULES CONNECTED</p>
+                            </div>
+                            <div class="hex" data-index="1" onclick="openModule(1)"><span class="module-label">M1</span><span>Fund.</span></div>
+                            <div class="hex" data-index="2" onclick="openModule(2)"><span class="module-label">M2</span><span>Threats</span></div>
+                            <div class="hex" data-index="3" onclick="openModule(3)"><span class="module-label">M3</span><span>Identity</span></div>
+                            <div class="hex" data-index="4" onclick="openModule(4)"><span class="module-label">M4</span><span>Encrypt</span></div>
+                            <div class="hex" data-index="5" onclick="openModule(5)"><span class="module-label">M5</span><span>Network</span></div>
+                            <div class="hex" data-index="6" onclick="openModule(6)"><span class="module-label">M6</span><span>Practice</span></div>
+                            <div class="hex" data-index="7" onclick="openModule(7)"><span class="module-label">M7</span><span>Policies</span></div>
+                            <div class="hex" data-index="8" onclick="openModule(8)"><span class="module-label">M8</span><span>Response</span></div>
+                            <div class="hex" data-index="9" onclick="openModule(9)"><span class="module-label">M9</span><span>Ethics</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<div id="about-view" class="hidden p-4">
+    <h2 class="text-3xl font-bold text-center text-cyan-300 mb-8 tracking-widest" style="text-shadow: 0 0 10px rgba(0,255,255,0.5);">SYSTEM ARCHITECTURE: BYTEQUEST</h2>
+    
+    <div class="hud w-11/12 max-w-5xl mx-auto p-8 rounded-xl text-cyan-100 space-y-8 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-4 opacity-20 text-6xl select-none pointer-events-none">📝</div>
+
+        <div class="border-l-4 border-cyan-500 pl-6 bg-cyan-900/10 p-4 rounded-r-lg">
+            <h3 class="text-xl font-bold text-cyan-400 mb-2">1. OPERATIONAL OVERVIEW</h3>
+            <p class="leading-relaxed">
+                <span class="font-bold text-white">ByteQuest</span> is an advanced cybersecurity training interface designed to transform students into elite digital defenders. Unlike traditional learning management systems, ByteQuest simulates a live network environment where knowledge is your primary weapon. Agents must navigate through a structured <strong>Hexagonal Learning Path</strong>, engaging with secure data modules to unlock the secrets of information security.
+            </p>
+        </div>
+
+        <div class="border-l-4 border-lime-400 pl-6 bg-lime-900/10 p-4 rounded-r-lg">
+            <h3 class="text-xl font-bold text-lime-400 mb-2">2. THE HEX GRID PROTOCOL</h3>
+            <p class="leading-relaxed mb-3">
+                The core of the system is the <strong>Learning Path</strong>. Agents connect modules in a specific sequence to restore network integrity.
+            </p>
+            <ul class="list-disc list-inside text-sm space-y-1 text-gray-300 font-mono">
+                <li><span class="text-white">Phase 1 (M1-M3):</span> Fundamental concepts, Threat identification, and Identity management.</li>
+                <li><span class="text-white">Phase 2 (M4-M6):</span> Encryption ciphers, Network defense, and Security best practices.</li>
+                <li><span class="text-white">Phase 3 (M7-M9):</span> Corporate policies, Incident response, and Ethical hacking laws.</li>
+            </ul>
+        </div>
+
+        <div class="border-l-4 border-yellow-400 pl-6 bg-yellow-900/10 p-4 rounded-r-lg">
+            <h3 class="text-xl font-bold text-yellow-400 mb-2">3. AGENT PROGRESSION & RANKING</h3>
+            <p class="leading-relaxed">
+                Every action in ByteQuest yields <strong>Experience Points (XP)</strong>. Completing modules, passing diagnostic quizzes, and neutralizing threats in simulations contributes to your <span class="text-yellow-200">Global Rank</span>.
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-center text-xs font-mono font-bold">
+                <div class="bg-black/40 p-2 rounded border border-gray-600">LVL 0-24<br><span class="text-gray-400">NOVICE</span></div>
+                <div class="bg-black/40 p-2 rounded border border-cyan-600">LVL 25-49<br><span class="text-cyan-400">AGENT</span></div>
+                <div class="bg-black/40 p-2 rounded border border-purple-600">LVL 50-74<br><span class="text-purple-400">SPECIALIST</span></div>
+                <div class="bg-black/40 p-2 rounded border border-yellow-600">LVL 75+<br><span class="text-yellow-400">MASTER</span></div>
+            </div>
+        </div>
+
+        <div class="border-l-4 border-red-500 pl-6 bg-red-900/10 p-4 rounded-r-lg">
+            <h3 class="text-xl font-bold text-red-400 mb-2">4. DEFENSE SIMULATIONS (MINI-GAMES)</h3>
+            <p class="leading-relaxed">
+                Theory is nothing without practice. The <strong>Mini-Games Section</strong> allows agents to test their reflexes and decision-making skills in simulated attack scenarios:
+            </p>
+            <div class="flex flex-wrap gap-2 mt-3">
+                <span class="px-2 py-1 bg-red-500/20 border border-red-500 rounded text-xs">Threat Whack</span>
+                <span class="px-2 py-1 bg-blue-500/20 border border-blue-500 rounded text-xs">Phishing Scanner</span>
+                <span class="px-2 py-1 bg-green-500/20 border border-green-500 rounded text-xs">Cryptography Decoder</span>
+                <span class="px-2 py-1 bg-purple-500/20 border border-purple-500 rounded text-xs">Policy Manager</span>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-cyan-500/30 text-center">
+            <p class="text-sm text-cyan-500 font-bold uppercase tracking-widest mb-2">SYSTEM ACCESS REQUIREMENTS</p>
+            <p class="text-gray-400 text-sm">
+                Access to the ByteQuest Neural Network is strictly regulated. Only agents with a verified 
+                <span class="text-white font-bold bg-cyan-900/50 px-2 py-1 rounded">@tup.edu.ph</span> 
+                institutional email address may create an account. Unauthorized access attempts will be logged.
+            </p>
+        </div>
+    </div>
+</div>            
+            <div id="quests-view" class="hidden"><h2 class="text-3xl font-bold text-center text-cyan-300 mb-8">ACTIVE QUESTS 📜</h2><div class="hud p-6 rounded-xl w-11/12 max-w-3xl mx-auto"><ul class="space-y-4" id="quest-list"></ul></div></div>
+            
+            <div id="dashboard-view" class="hidden"><h2 class="text-3xl font-bold text-center text-cyan-300 mb-8">DASHBOARD 📊</h2><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" id="dashboard-stats"><div class="hud p-6 rounded-xl border-t-4 border-lime-400/80"><p class="text-4xl font-extrabold text-lime-400 mb-2" id="dash-modules">0</p><p>Modules</p></div><div class="hud p-6 rounded-xl border-t-4 border-purple-400/80"><p class="text-4xl font-extrabold text-purple-400 mb-2" id="dash-badges">0</p><p>Badges</p></div><div class="hud p-6 rounded-xl border-t-4 border-yellow-400/80"><p class="text-4xl font-extrabold text-yellow-400 mb-2" id="dash-xp">0</p><p>XP</p></div><div class="hud p-6 rounded-xl border-t-4 border-blue-400/80"><p class="text-4xl font-extrabold text-blue-400 mb-2" id="dash-quests">0</p><p>Quests</p></div></div><div class="mt-10 text-center text-xl text-red-400 hidden" id="dashboard-login-msg"><p>ACCESS DENIED: Sign in to view progress.</p></div></div>
+            
+            <div id="leaderboard-view" class="hidden">
+                <h2 class="text-3xl font-bold text-center text-cyan-300 mb-8">LEADERBOARD 🏆</h2>
+                <div id="leaderboard-content" class="hud p-6 rounded-xl overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="text-cyan-400 border-b border-cyan-400/50">
+                            <tr>
+                                <th class="py-3 px-4">Rank</th>
+                                <th class="py-3 px-4">Agent</th>
+                                <th class="py-3 px-4">XP</th>
+                                <th class="py-3 px-4">Level</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-table-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="minigames-view" class="hidden">
+                <h2 class="text-3xl font-bold text-center text-cyan-300 mb-8 tracking-widest" style="text-shadow: 0 0 10px rgba(0,255,255,0.5);">DEFENSE SIMULATIONS 🕹️</h2>
+                
+                <div id="game-selection-area" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="game-selection-item" onclick="launchGame('concept')"><div class="game-icon">🧠</div><h3 class="text-xl font-bold">Concept Match</h3><p class="text-sm mt-1">Match terms & definitions.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('threat')"><div class="game-icon">🎯</div><h3 class="text-xl font-bold">Threat Whack</h3><p class="text-sm mt-1">Neutralize threats fast!</p></div>
+                    <div class="game-selection-item" onclick="launchGame('login')"><div class="game-icon">🔑</div><h3 class="text-xl font-bold">Login Guy</h3><p class="text-sm mt-1">Defend the terminal.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('decrypt')"><div class="game-icon">🔐</div><h3 class="text-xl font-bold">Decryptor</h3><p class="text-sm mt-1">Break the ciphers.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('network')"><div class="game-icon">🛡️</div><h3 class="text-xl font-bold">Net-Secure</h3><p class="text-sm mt-1">Defend the grid.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('clicks')"><div class="game-icon">🖱️</div><h3 class="text-xl font-bold">Link Scanner</h3><p class="text-sm mt-1">Avoid phishing links.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('policy')"><div class="game-icon">📜</div><h3 class="text-xl font-bold">Policy Prioritizer</h3><p class="text-sm mt-1">Approve or Reject.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('incident')"><div class="game-icon">🚨</div><h3 class="text-xl font-bold">Incident Race</h3><p class="text-sm mt-1">Respond before breach.</p></div>
+                    <div class="game-selection-item" onclick="launchGame('ethics')"><div class="game-icon">🤝</div><h3 class="text-xl font-bold">Ethics Quiz</h3><p class="text-sm mt-1">Moral dilemmas.</p></div>
+                </div>
+
+                <div id="game-concept" class="hidden max-w-3xl mx-auto relative">
+                    <div id="concept-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🧠</div>
+                        <h2 class="text-2xl font-bold text-cyan-400">MISSION: CONCEPT MATCH</h2>
+                        <p class="text-gray-300 max-w-md">The database is fragmented. Your task is to synchronize the security terminology with their correct definitions.</p>
+                        <div class="bg-cyan-900/30 p-4 rounded border border-cyan-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-cyan-200">
+                                <li>Click a card to flip it over.</li>
+                                <li>Find the matching Term and Definition pair.</li>
+                                <li>Match all pairs as fast as possible.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('concept')">START SYNCHRONIZATION</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="concept-game-interface" class="hidden">
+                        <div class="game-hud flex justify-between mb-4"><span>Moves: <span id="cm-moves">0</span></span><span>Time: <span id="cm-time">00:00</span></span><button class="btn btn-blue text-lg px-6 py-2" onclick="startConceptMatch()">Restart</button></div>
+                        <div id="cm-grid" class="grid grid-cols-4 gap-4"></div>
+                        <div id="cm-msg" class="text-center mt-4 hidden font-bold text-lime-400"></div>
+                        <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back to Games</button>
+                    </div>
+                </div>
+
+                <div id="game-threat" class="hidden max-w-2xl mx-auto relative">
+                    <div id="threat-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🎯</div>
+                        <h2 class="text-2xl font-bold text-red-400">MISSION: THREAT ELIMINATION</h2>
+                        <p class="text-gray-300 max-w-md">Hostiles have breached the perimeter. Engage manual targeting protocols to neutralize threats.</p>
+                        <div class="bg-red-900/30 p-4 rounded border border-red-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-red-200">
+                                <li>Click the 👾 <span class="text-white font-bold">GLITCHES</span> immediately (+10 pts).</li>
+                                <li>Do NOT click the 🛡️ <span class="text-white font-bold">SHIELDS</span> (-10 pts).</li>
+                                <li>You have 30 seconds. Score high!</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('threat')">ENGAGE TARGETS</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="threat-game-interface" class="hidden">
+                        <div class="game-hud flex justify-between mb-4"><span>Score: <span id="tw-score">0</span></span><span>Time: <span id="tw-timer">30</span>s</span></div>
+                        <div id="tw-grid" class="grid grid-cols-3 gap-4 mb-4"></div>
+                        <button id="tw-start" class="hidden btn btn-green w-full" onclick="startThreatWhack()">Start Mission</button>
+                        <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back</button>
+                    </div>
+                </div>
+
+                <div id="game-login" class="hidden max-w-2xl mx-auto relative">
+                    <div id="login-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🔑</div>
+                        <h2 class="text-2xl font-bold text-yellow-400">MISSION: ACCESS CONTROL</h2>
+                        <p class="text-gray-300 max-w-md">You are the Gatekeeper. Various security scenarios will appear on the terminal. Choose wisely.</p>
+                        <div class="bg-yellow-900/30 p-4 rounded border border-yellow-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-yellow-200">
+                                <li>Read the terminal scenario context.</li>
+                                <li>Select the <span class="text-white font-bold">SECURE</span> option.</li>
+                                <li>Avoid risky or convenient shortcuts.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('login')">BOOT TERMINAL</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="login-game-interface" class="hidden">
+                        <div class="game-hud flex-col items-stretch w-full p-0 overflow-hidden relative bg-black border-2 border-cyan-500 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.3)]">
+                            <div class="bg-cyan-900/50 p-2 border-b border-cyan-500 flex justify-between items-center w-full">
+                                <span class="text-xs font-mono text-cyan-300">● TERMINAL_ACCESS_V1.0</span>
+                                <div class="flex gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-red-500"></div><div class="w-3 h-3 rounded-full bg-yellow-500"></div><div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                </div>
+                            </div>
+                            <div class="p-6 font-mono min-h-[350px] flex flex-col justify-between relative w-full">
+                                <div id="lp-terminal-text" class="text-green-400 text-sm whitespace-pre-wrap leading-relaxed typing-cursor"></div>
+                                <div id="lp-visual-feedback" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl opacity-0 transition-opacity duration-500 pointer-events-none"></div>
+                                <div class="mt-4">
+                                    <p class="text-cyan-600 text-xs mb-2">SELECT_SECURITY_PROTOCOL_></p>
+                                    <div id="lp-opts" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="lp-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Mission</button>
+                    </div>
+                </div>
+
+                <div id="game-decrypt" class="hidden max-w-xl mx-auto relative">
+                    <div id="decrypt-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🔐</div>
+                        <h2 class="text-2xl font-bold text-green-400">MISSION: CRYPTANALYSIS</h2>
+                        <p class="text-gray-300 max-w-md">We have intercepted encrypted enemy communications. Use the Caesar Cipher tool to break the code.</p>
+                        <div class="bg-green-900/30 p-4 rounded border border-green-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-green-200">
+                                <li>Check the "SHIFT" value (e.g., +3).</li>
+                                <li>Use the Reference Guide to translate letters.</li>
+                                <li>Select the correct DECODED word from the options.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('decrypt')">INITIALIZE TOOL</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="decrypt-game-interface" class="hidden">
+                        <div class="game-hud block w-full p-0 overflow-hidden border-2 border-green-500 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                            <div class="bg-black/50 p-6 w-full">
+                                <div class="mb-4 bg-black/80 p-3 rounded border border-green-500/30 font-mono text-xs">
+                                    <div class="flex justify-between text-gray-400 mb-2"><span>ENCRYPTED_SIGNAL_RECEIVED</span><span id="dc-shift-display" class="text-yellow-400">SHIFT: +?</span></div>
+                                    <div id="dc-cipher" class="text-4xl font-bold text-green-400 tracking-[0.2em] my-4 text-center glitch-text">KHOOR</div>
+                                </div>
+                                <div class="mb-6">
+                                    <p class="text-[10px] text-cyan-500 mb-1 uppercase tracking-wider">Decryption Reference Key</p>
+                                    <div class="flex justify-center gap-2 font-mono text-xs overflow-x-auto p-2 bg-cyan-900/20 rounded border border-cyan-500/20" id="dc-ref-guide"></div>
+                                </div>
+                                <div id="dc-opts" class="grid grid-cols-2 gap-4"></div>
+                                <div id="dc-feedback" class="mt-4 font-bold h-6 text-center"></div>
+                            </div>
+                        </div>
+                        <button id="dc-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Decryption</button>
+                    </div>
+                </div>
+
+                <div id="game-network" class="hidden max-w-2xl mx-auto relative">
+                    <div id="network-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🛡️</div>
+                        <h2 class="text-2xl font-bold text-blue-400">MISSION: NETWORK DEFENSE</h2>
+                        <p class="text-gray-300 max-w-md">The grid is under active viral attack. Nodes are being corrupted. Maintain system integrity!</p>
+                        <div class="bg-blue-900/30 p-4 rounded border border-blue-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-blue-200">
+                                <li>Wait for nodes to turn RED (Infected 🦠).</li>
+                                <li>Click them fast to turn them GREEN (Safe 🛡️).</li>
+                                <li>If Score hits 0, the network crashes.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('network')">DEPLOY FIREWALL</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="network-game-interface" class="hidden">
+                        <div class="game-hud flex justify-between mb-4"><span>Score: <span id="net-score">0</span></span><span>Time: <span id="net-timer">30</span>s</span></div>
+                        <div id="net-grid" class="grid grid-cols-3 gap-4"></div>
+                        <div id="net-msg" class="text-center mt-4 h-6 text-cyan-400"></div>
+                        <button id="net-start" class="hidden btn btn-green w-full mt-4" onclick="startNetworkGame()">Start Defense</button>
+                        <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back</button>
+                    </div>
+                </div>
+
+                <div id="game-clicks" class="hidden max-w-4xl mx-auto relative">
+                    <div id="clicks-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🖱️</div>
+                        <h2 class="text-2xl font-bold text-purple-400">MISSION: PHISHING SCANNER</h2>
+                        <p class="text-gray-300 max-w-md">Incoming traffic contains malicious phishing links mixed with safe domains. Filter the noise.</p>
+                        <div class="bg-purple-900/30 p-4 rounded border border-purple-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-purple-200">
+                                <li>Analyze the domain name carefully.</li>
+                                <li>Click <span class="text-white font-bold">SCAN</span>.</li>
+                                <li>The system will auto-block threats and pass safe links.</li>
+                                <li>Verify as many links as possible in 30s.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('clicks')">START SCAN</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="clicks-game-interface" class="hidden">
+                        <div class="game-hud block w-full p-0 overflow-hidden border-2 border-blue-500 rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.3)] bg-gray-900/80">
+                            <div class="bg-blue-900/30 p-3 border-b border-blue-500/50 flex justify-between items-center w-full">
+                                <div class="flex items-center gap-4">
+                                    <span class="text-blue-300 font-mono text-xl">🛡️ DEFENSE_MODE</span>
+                                    <span class="text-xs text-gray-400 hidden sm:inline">SCANNING INBOUND TRAFFIC...</span>
+                                </div>
+                                <div class="font-mono text-lg">
+                                    <span class="text-yellow-400 mr-4">SCORE: <span id="sc-score">0</span></span>
+                                    <span class="text-red-400">TIME: <span id="sc-timer">30</span>s</span>
+                                </div>
+                            </div>
+                            <div id="sc-grid" class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[300px]"></div>
+                        </div>
+                        <button id="sc-start" class="hidden btn btn-green w-full mt-4" onclick="startSafeClicks()">Initialize Scanner</button>
+                        <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Scan</button>
+                    </div>
+                </div>
+
+                <div id="game-policy" class="hidden max-w-xl mx-auto relative">
+                    <div id="policy-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">📜</div>
+                        <h2 class="text-2xl font-bold text-amber-400">MISSION: POLICY ADMIN</h2>
+                        <p class="text-gray-300 max-w-md">You have been granted Admin privileges. Review proposed security policies for the organization.</p>
+                        <div class="bg-amber-900/30 p-4 rounded border border-amber-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-amber-200">
+                                <li>Read the proposed policy carefully.</li>
+                                <li>Click <span class="text-green-400 font-bold">APPROVE ✅</span> if it improves security.</li>
+                                <li>Click <span class="text-red-400 font-bold">REJECT ❌</span> if it creates a vulnerability.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('policy')">ENTER OFFICE</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="policy-game-interface" class="hidden">
+                        <div class="game-hud flex-col p-6 bg-gray-900/90 border border-purple-500 rounded-lg">
+                            <div class="text-center mb-4">
+                                <h3 class="text-purple-400 font-bold mb-2">PROPOSED SECURITY POLICY</h3>
+                                <div id="pp-card" class="bg-black p-6 rounded border border-gray-600 h-32 flex items-center justify-center text-lg font-mono"></div>
+                            </div>
+                            <div class="flex gap-4 w-full">
+                                <button class="btn btn-red w-1/2 py-3 font-bold" onclick="handlePolicyChoice(false)">REJECT ❌</button>
+                                <button class="btn btn-green w-1/2 py-3 font-bold" onclick="handlePolicyChoice(true)">APPROVE ✅</button>
+                            </div>
+                            <div id="pp-feedback" class="mt-4 text-center h-6 font-bold"></div>
+                            <div class="mt-4 text-center text-xs text-gray-400">Score: <span id="pp-score">0</span></div>
+                        </div>
+                        <button id="pp-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Exit Office</button>
+                    </div>
+                </div>
+
+                <div id="game-incident" class="hidden max-w-2xl mx-auto relative">
+                    <div id="incident-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">🚨</div>
+                        <h2 class="text-2xl font-bold text-red-500 animate-pulse">MISSION: ACTIVE BREACH</h2>
+                        <p class="text-gray-300 max-w-md">CRITICAL ALERT! Data is being exfiltrated. Your response team must act faster than the attackers.</p>
+                        <div class="bg-red-900/30 p-4 rounded border border-red-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-red-200">
+                                <li>A Security Incident will appear.</li>
+                                <li>Choose the correct RESPONSE immediately.</li>
+                                <li>Fill the <span class="text-green-400">Response Bar</span> before the <span class="text-red-400">Hacker Bar</span> fills up.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('incident')">DEPLOY TEAM</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="incident-game-interface" class="hidden">
+                        <div class="game-hud flex-col p-6 bg-gray-900/90 border border-cyan-500 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                            <div class="mb-6 w-full space-y-2">
+                                <div class="flex justify-between text-xs text-green-400"><span>RESPONSE TEAM</span><span><span id="ir-team-prog">0</span>%</span></div>
+                                <div class="w-full bg-gray-800 h-4 rounded overflow-hidden"><div id="ir-bar-team" class="bg-green-500 h-full w-0 transition-all duration-300"></div></div>
+                                
+                                <div class="flex justify-between text-xs text-red-400 mt-2"><span>DATA BREACH</span><span><span id="ir-hack-prog">0</span>%</span></div>
+                                <div class="w-full bg-gray-800 h-4 rounded overflow-hidden"><div id="ir-bar-hack" class="bg-red-500 h-full w-0 transition-all duration-1000"></div></div>
+                            </div>
+
+                            <div id="ir-question-area" class="w-full text-center"></div>
+                            
+                            <button id="ir-start-btn" class="hidden btn btn-green w-full mt-4" onclick="startIncidentRace()">START RESPONSE</button>
+                        </div>
+                        <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abandon Room</button>
+                    </div>
+                </div>
+
+                <div id="game-ethics" class="hidden max-w-2xl mx-auto relative">
+                    <div id="ethics-start-screen" class="hud p-8 rounded-xl text-center flex flex-col items-center gap-4">
+                        <div class="text-6xl mb-2">⚖️</div>
+                        <h2 class="text-2xl font-bold text-indigo-400">MISSION: LEGAL & ETHICS</h2>
+                        <p class="text-gray-300 max-w-md">Technical skills are dangerous without a moral compass. Prove your understanding of the law.</p>
+                        <div class="bg-indigo-900/30 p-4 rounded border border-indigo-500/30 text-sm text-left w-full max-w-md">
+                            <strong>HOW TO PLAY:</strong>
+                            <ul class="list-disc list-inside mt-2 space-y-1 text-indigo-200">
+                                <li>Review the workplace dilemma.</li>
+                                <li>Choose the option that aligns with Cybersecurity Laws and Ethics.</li>
+                                <li>Make 5 correct judgments to pass.</li>
+                            </ul>
+                        </div>
+                        <button class="btn btn-green w-full max-w-xs py-3 font-bold text-lg mt-4" onclick="beginGameSession('ethics')">ENTER COURTROOM</button>
+                        <button class="btn btn-red w-full max-w-xs py-2 text-sm" onclick="showGameSelect()">CANCEL</button>
+                    </div>
+                    <div id="ethics-game-interface" class="hidden">
+                        <div class="game-hud flex-col p-6 bg-gray-900/90 border border-yellow-500 rounded-lg">
+                            <div class="w-full mb-4">
+                                <span class="text-xs text-yellow-500">SCENARIO:</span>
+                                <p id="eq-scenario" class="text-lg mt-1 p-4 bg-black/40 rounded border border-yellow-500/30"></p>
+                            </div>
+                            <div id="eq-opts" class="flex flex-col gap-3 w-full"></div>
+                            <div id="eq-feedback" class="mt-4 p-3 bg-black/60 rounded hidden border border-gray-600 text-sm"></div>
+                            <button id="eq-next" class="btn btn-blue w-full mt-4 hidden" onclick="nextEthics()">Next Scenario</button>
+                        </div>
+                        <button id="eq-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Exit Court</button>
+                    </div>
+                </div>
+            </div>
+
+                <div id="game-concept" class="hidden max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Concept Match</h2>
+                    <div class="game-hud flex justify-between mb-4"><span>Moves: <span id="cm-moves">0</span></span><span>Time: <span id="cm-time">00:00</span></span><button class="btn btn-blue text-lg px-6 py-2" onclick="startConceptMatch()">Restart</button></div>
+                    <div id="cm-grid" class="grid grid-cols-4 gap-4"></div>
+                    <div id="cm-msg" class="text-center mt-4 hidden font-bold text-lime-400"></div>
+                    <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back to Games</button>
+                </div>
+
+                <div id="game-threat" class="hidden max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Threat Whack</h2>
+                    <div class="game-hud flex justify-between mb-4"><span>Score: <span id="tw-score">0</span></span><span>Time: <span id="tw-timer">30</span>s</span></div>
+                    <div id="tw-grid" class="grid grid-cols-3 gap-4 mb-4"></div>
+                    <button id="tw-start" class="btn btn-green w-full" onclick="startThreatWhack()">Start Mission</button>
+                    <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back</button>
+                </div>
+
+                <div id="game-login" class="hidden max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Login Guy: Cyber Guard</h2>
+                    <div class="game-hud flex-col items-stretch w-full p-0 overflow-hidden relative bg-black border-2 border-cyan-500 rounded-lg shadow-[0_0_20px_rgba(0,255,255,0.3)]">
+                        <div class="bg-cyan-900/50 p-2 border-b border-cyan-500 flex justify-between items-center w-full">
+                            <span class="text-xs font-mono text-cyan-300">● TERMINAL_ACCESS_V1.0</span>
+                            <div class="flex gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                        </div>
+                        <div class="p-6 font-mono min-h-[350px] flex flex-col justify-between relative w-full">
+                            <div id="lp-terminal-text" class="text-green-400 text-sm whitespace-pre-wrap leading-relaxed typing-cursor"></div>
+                            <div id="lp-visual-feedback" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl opacity-0 transition-opacity duration-500 pointer-events-none"></div>
+                            <div class="mt-4">
+                                <p class="text-cyan-600 text-xs mb-2">SELECT_SECURITY_PROTOCOL_></p>
+                                <div id="lp-opts" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="lp-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Mission</button>
+                </div>
+
+                <div id="game-decrypt" class="hidden max-w-xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Cryptanalysis Tool</h2>
+                    <div class="game-hud block w-full p-0 overflow-hidden border-2 border-green-500 rounded shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                        <div class="bg-black/50 p-6 w-full">
+                            <div class="mb-4 bg-black/80 p-3 rounded border border-green-500/30 font-mono text-xs">
+                                <div class="flex justify-between text-gray-400 mb-2"><span>ENCRYPTED_SIGNAL_RECEIVED</span><span id="dc-shift-display" class="text-yellow-400">SHIFT: +?</span></div>
+                                <div id="dc-cipher" class="text-4xl font-bold text-green-400 tracking-[0.2em] my-4 text-center glitch-text">KHOOR</div>
+                            </div>
+                            <div class="mb-6">
+                                <p class="text-[10px] text-cyan-500 mb-1 uppercase tracking-wider">Decryption Reference Key (Current Signal)</p>
+                                <div class="flex justify-center gap-2 font-mono text-xs overflow-x-auto p-2 bg-cyan-900/20 rounded border border-cyan-500/20" id="dc-ref-guide"></div>
+                            </div>
+                            <div id="dc-opts" class="grid grid-cols-2 gap-4"></div>
+                            <div id="dc-feedback" class="mt-4 font-bold h-6 text-center"></div>
+                        </div>
+                    </div>
+                    <button id="dc-next" class="hidden"></button>
+                    <button id="dc-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Decryption</button>
+                </div>
+
+                <div id="game-network" class="hidden max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Secure the Network</h2>
+                    <div class="game-hud flex justify-between mb-4"><span>Score: <span id="net-score">0</span></span><span>Time: <span id="net-timer">30</span>s</span></div>
+                    <div id="net-grid" class="grid grid-cols-3 gap-4"></div>
+                    <div id="net-msg" class="text-center mt-4 h-6 text-cyan-400"></div>
+                    <button id="net-start" class="btn btn-green w-full mt-4" onclick="startNetworkGame()">Start Defense</button>
+                    <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Back</button>
+                </div>
+
+                <div id="game-clicks" class="hidden max-w-4xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Link Scanner: Phishing Defense</h2>
+                    <div class="game-hud block w-full p-0 overflow-hidden border-2 border-blue-500 rounded-lg shadow-[0_0_20px_rgba(59,130,246,0.3)] bg-gray-900/80">
+                        <div class="bg-blue-900/30 p-3 border-b border-blue-500/50 flex justify-between items-center w-full">
+                            <div class="flex items-center gap-4">
+                                <span class="text-blue-300 font-mono text-xl">🛡️ DEFENSE_MODE</span>
+                                <span class="text-xs text-gray-400 hidden sm:inline">SCANNING INBOUND TRAFFIC...</span>
+                            </div>
+                            <div class="font-mono text-lg">
+                                <span class="text-yellow-400 mr-4">SCORE: <span id="sc-score">0</span></span>
+                                <span class="text-red-400">TIME: <span id="sc-timer">30</span>s</span>
+                            </div>
+                        </div>
+                        <div id="sc-grid" class="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[300px]"></div>
+                    </div>
+                    <button id="sc-start" class="btn btn-green w-full mt-4" onclick="startSafeClicks()">Initialize Scanner</button>
+                    <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abort Scan</button>
+                </div>
+
+                <div id="game-policy" class="hidden max-w-xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Policy Prioritizer (M7)</h2>
+                    <div class="game-hud flex-col p-6 bg-gray-900/90 border border-purple-500 rounded-lg">
+                        <div class="text-center mb-4">
+                            <h3 class="text-purple-400 font-bold mb-2">PROPOSED SECURITY POLICY</h3>
+                            <div id="pp-card" class="bg-black p-6 rounded border border-gray-600 h-32 flex items-center justify-center text-lg font-mono"></div>
+                        </div>
+                        <div class="flex gap-4 w-full">
+                            <button class="btn btn-red w-1/2 py-3 font-bold" onclick="handlePolicyChoice(false)">REJECT ❌</button>
+                            <button class="btn btn-green w-1/2 py-3 font-bold" onclick="handlePolicyChoice(true)">APPROVE ✅</button>
+                        </div>
+                        <div id="pp-feedback" class="mt-4 text-center h-6 font-bold"></div>
+                        <div class="mt-4 text-center text-xs text-gray-400">Score: <span id="pp-score">0</span></div>
+                    </div>
+                    <button id="pp-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Exit Office</button>
+                </div>
+
+                <div id="game-incident" class="hidden max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Incident Race (M8)</h2>
+                    <div class="game-hud flex-col p-6 bg-gray-900/90 border border-cyan-500 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                        <div class="mb-6 w-full space-y-2">
+                            <div class="flex justify-between text-xs text-green-400"><span>RESPONSE TEAM</span><span><span id="ir-team-prog">0</span>%</span></div>
+                            <div class="w-full bg-gray-800 h-4 rounded overflow-hidden"><div id="ir-bar-team" class="bg-green-500 h-full w-0 transition-all duration-300"></div></div>
+                            
+                            <div class="flex justify-between text-xs text-red-400 mt-2"><span>DATA BREACH</span><span><span id="ir-hack-prog">0</span>%</span></div>
+                            <div class="w-full bg-gray-800 h-4 rounded overflow-hidden"><div id="ir-bar-hack" class="bg-red-500 h-full w-0 transition-all duration-1000"></div></div>
+                        </div>
+
+                        <div id="ir-question-area" class="w-full text-center">
+                             </div>
+                        
+                        <button id="ir-start-btn" class="btn btn-green w-full mt-4" onclick="startIncidentRace()">START RESPONSE</button>
+                    </div>
+                    <button class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Abandon Room</button>
+                </div>
+
+                <div id="game-ethics" class="hidden max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-bold text-center mb-4">Ethics & Law Quiz (M9)</h2>
+                    <div class="game-hud flex-col p-6 bg-gray-900/90 border border-yellow-500 rounded-lg">
+                        <div class="w-full mb-4">
+                            <span class="text-xs text-yellow-500">SCENARIO:</span>
+                            <p id="eq-scenario" class="text-lg mt-1 p-4 bg-black/40 rounded border border-yellow-500/30"></p>
+                        </div>
+                        <div id="eq-opts" class="flex flex-col gap-3 w-full"></div>
+                        <div id="eq-feedback" class="mt-4 p-3 bg-black/60 rounded hidden border border-gray-600 text-sm"></div>
+                        <button id="eq-next" class="btn btn-blue w-full mt-4 hidden" onclick="nextEthics()">Next Scenario</button>
+                    </div>
+                    <button id="eq-end-btn" class="btn btn-cyan mt-4 w-full" onclick="showGameSelect()">Exit Court</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="module-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center z-40 p-4">
+        <div class="hud rounded-2xl p-6 w-11/12 max-w-xl text-center">
+            <h3 id="module-title" class="text-2xl font-bold text-cyan-400 mb-4 border-b border-cyan-400/50 pb-2"></h3>
+            <div id="content-selection" class="mb-4">
+                <h4 class="text-xl font-semibold mb-3 text-lime-400">Phase 1: Knowledge Acquisition</h4>
+                <div class="flex flex-col sm:flex-row justify-center gap-4 mb-4">
+                    <div class="auth-item-container w-full sm:w-auto"><button id="select-video-btn" class="btn btn-blue btn-modal-action w-full">Watch Video</button></div>
+                    <div class="auth-item-container w-full sm:w-auto"><button id="select-slideshow-btn" class="btn btn-cyan btn-modal-action w-full">View Slideshow</button></div>
+                </div>
+            </div>
+            <div id="video-content-area" class="hidden">
+                <div class="video-container mb-4"><div id="player-placeholder"></div></div>
+            </div>
+            <div id="slideshow-content-area" class="hidden">
+                <div class="slideshow-container mb-4"><iframe id="slideshow-frame" src="" class="w-full h-[250px] sm:h-[450px] rounded-lg" frameborder="0" allowfullscreen></iframe></div>
+                <div class="text-center"><button id="manual-finish-btn" class="text-sm text-cyan-500 underline hover:text-cyan-300">I have finished reading</button></div>
+            </div>
+            <div id="proceed-btn-container" class="hidden text-center mb-4">
+                <div class="auth-item-container inline-block"><button id="video-watched-btn" class="btn btn-lime font-bold text-lg">PROCEED TO QUEST (+100 XP)</button></div>
+            </div>
+            <div id="quiz-area" class="hidden">
+                <h4 class="text-xl font-semibold mb-4 text-yellow-400">Diagnostic Quest</h4>
+                <p id="quiz-step-indicator" class="text-xs text-cyan-500 mb-2 uppercase tracking-widest">QUESTION 1 OF 3</p>
+                <div id="quiz-container" class="text-left flex flex-col gap-3 min-h-[200px]"></div>
+                <p id="quiz-feedback" class="mt-4 font-bold text-center h-6"></p>
+                <div class="flex justify-between mt-4">
+                    <div class="auth-item-container w-full">
+                        <button id="quiz-next-btn" class="btn btn-blue w-full">NEXT QUESTION ▶</button>
+                        <button id="submit-quiz-btn" class="hidden btn btn-green w-full">SUBMIT ANSWERS ✅</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-cyan-500/20">
+                <div class="auth-item-container inline-block"><button id="close-modal" class="btn btn-cyan btn-modal-small w-full sm:w-auto">Close</button></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="profile-modal" class="hidden fixed inset-0 modal-bg flex items-center justify-center z-50 p-4">
+    <div class="hud rounded-xl p-8 w-11/12 max-w-md text-center relative max-h-[90vh] overflow-y-auto">
+        <h1 class="text-2xl font-bold mb-6 border-b border-cyan-500/50 pb-2">PROFILE HQ</h1>
+        <button id="close-profile-modal" class="absolute top-3 right-3 text-2xl hover:text-red-500">&times;</button>
+        
+        <div class="mb-6 text-left">
+            <label class="block text-cyan-500 text-sm font-bold mb-1">Codename / Username</label>
+            <div class="flex gap-2">
+                <input id="edit-username-input" type="text" class="w-full p-2 rounded bg-black/40 border border-cyan-500 text-white" placeholder="Enter new codename">
+                <div class="auth-item-container m-0 p-0"><button id="save-username-btn" class="btn btn-green text-sm px-4 py-2">SAVE</button></div>
+            </div>
+            <p id="username-msg" class="text-xs mt-1 text-cyan-300 h-4"></p>
+        </div>
+        
+        <div class="mb-6 text-left">
+            <label class="block text-cyan-500 text-sm font-bold mb-2">Upload Custom Avatar</label>
+            <div class="file-input-wrapper">
+                <input id="custom-avatar-input" type="file" accept="image/*" class="text-sm text-gray-300" />
+                <div class="auth-item-container m-0 p-0"><button id="upload-avatar-btn" class="btn btn-blue text-sm px-4 py-2">UPLOAD</button></div>
+            </div>
+            <p id="upload-msg" class="text-xs mt-1 text-cyan-300 h-4"></p>
+        </div>
+        
+        <p class="text-sm text-cyan-500 mb-2 font-bold text-center">-- OR CHOOSE PRESET --</p>
+        <div class="grid grid-cols-4 gap-4 mb-6" id="avatar-grid">
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/adventurer/svg?seed=agent" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/bottts/svg?seed=hacker" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/lorelei/svg?seed=ninja" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/micah/svg?seed=robot" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/initials/svg?seed=explorer" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/rings/svg?seed=wizard" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/thumbs/svg?seed=cyborg" class="avatar-choice"></div>
+            <div class="avatar-container"><img src="https://api.dicebear.com/8.x/identicon/svg?seed=scientist" class="avatar-choice"></div>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-cyan-500/30 text-left">
+            <h2 class="text-lg font-bold text-yellow-400 mb-4">SECURITY UPDATE</h2>
+            <label class="block text-cyan-500 text-sm font-bold mb-1">New Access Key (Password)</label>
+            <input id="new-password-input" type="password" class="w-full p-2 rounded bg-black/40 border border-cyan-500 text-white mb-2" placeholder="Enter strong new password">
+            <input id="confirm-password-input" type="password" class="w-full p-2 rounded bg-black/40 border border-cyan-500 text-white mb-3" placeholder="Confirm new password">
+            <div class="auth-item-container m-0 p-0"><button id="change-password-btn" class="btn btn-gold w-full py-2">UPDATE PASSWORD</button></div>
+            <p id="password-change-msg" class="text-xs mt-1 text-cyan-300 h-4 text-center"></p>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-red-500/30 text-left">
+            <h2 class="text-lg font-bold text-red-500 mb-4">TERMINATE ACCESS</h2>
+            <p class="text-xs text-gray-400 mb-3">Warning: This action is irreversible. All XP, badges, and progress will be deleted from the database.</p>
+            <div class="auth-item-container m-0 p-0">
+                <button id="delete-account-btn" class="btn btn-red w-full py-2">DELETE ACCOUNT PERMANENTLY</button>
+            </div>
+            <p id="delete-account-msg" class="text-xs mt-1 text-red-400 h-4 text-center"></p>
+        </div>
+
+    </div>
+</div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <script>
+        // === SUPABASE CONFIGURATION ===
+        const SUPABASE_URL = 'https://atrxlvgemawglvotothr.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0cnhsdmdlbWF3Z2x2b3RvdGhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIwMDYyMjksImV4cCI6MjA3NzU4MjIyOX0.SRnoKkx2gg-DsuZazrVkEn_dcUm4JMoblSdnkkMnBuk';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // === BADGE CONFIGURATION ===
+        // Maps Module ID to a specific visual seed (using DiceBear Glass style for a cyber look)
+        // === BADGE CONFIGURATION (FIXED: Using SVG Paths instead of DiceBear) ===
+        const BADGE_ASSETS = {
+            1: { 
+                path: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", 
+                name: "Guardian", desc: "Completed Fundamentals" 
+            }, // Shield
+            2: { 
+                path: "M12 2a4 4 0 00-4 4v3H6a2 2 0 00-2 2v3a2 2 0 002 2h2v4h8v-4h2a2 2 0 002-2v-3a2 2 0 00-2-2h-2V6a4 4 0 00-4-4z", 
+                name: "Exterminator", desc: "Completed Threats" 
+            }, // Bug
+            3: { 
+                path: "M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9z", 
+                name: "Identity", desc: "Completed Identity" 
+            }, // ID Card
+            4: { 
+                path: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z", 
+                name: "Cryptographer", desc: "Completed Encryption" 
+            }, // Lock
+            5: { 
+                path: "M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM2 12h20", 
+                name: "NetRunner", desc: "Completed Network" 
+            }, // Globe
+            6: { 
+                path: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", 
+                name: "Strategist", desc: "Completed Practices" 
+            }, // Checkmark
+            7: { 
+                path: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z", 
+                name: "Bureaucrat", desc: "Completed Policies" 
+            }, // Document
+            8: { 
+                path: "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-12 0v5l-2 2v1h16v-1l-2-2z", 
+                name: "First Responder", desc: "Completed Incident" 
+            }, // Alert Bell
+            9: { 
+                path: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z", 
+                name: "Ethical Hacker", desc: "Completed Ethics" 
+            } // Star
+        };
+    
+        // --- Core Application Data ---
+        let currentUser = null, currentProfile = null, cachedModules = [];
+        let youtubePlayer = null; 
+        
+        // --- QUIZ VARIABLES ---
+        let loadedQuestions = []; let userAnswers = {}; let currentQuestionIndex = 0; 
+        const XP_PER_LEVEL = 100; const DEFAULT_PFP = "https://api.dicebear.com/8.x/pixel-art/svg?seed=guest";
+
+        // --- Init ---
+        async function initApp() { 
+            console.log("App Initializing...");
+            await fetchModules(); 
+            await checkSession(); 
+            fetchLeaderboard(); 
+        }
+
+        async function fetchModules() { 
+            try { const { data, error } = await supabase.from('modules').select('*').order('id'); if (error) throw error; if (data) cachedModules = data; } catch (err) { console.error("Module Fetch Error:", err); }
+        }
+
+        async function checkSession() { 
+            const { data: { session } } = await supabase.auth.getSession(); 
+            if (session) { currentUser = session.user; await fetchProfile(); } else { updateUI(null); } 
+        }
+
+        async function fetchProfile() { 
+            if (!currentUser) return; 
+            try {
+                const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single(); 
+                if (profileError && profileError.code === 'PGRST116') return;
+                if (profileData) { 
+                    currentProfile = profileData; 
+                    const { count } = await supabase.from('user_completed_modules').select('*', { count: 'exact', head: true }).eq('user_id', currentUser.id);
+                    currentProfile.badges_count = count || 0;
+                    const { data: completedData } = await supabase.from('user_completed_modules').select('module_id').eq('user_id', currentUser.id);
+                    currentProfile.completed_modules = (completedData || []).map(e => cachedModules.find(m => m.id === e.module_id)?.name).filter(n => n); 
+                    updateUI(currentProfile); 
+                } 
+            } catch (err) { console.error("Profile System Error:", err); }
+        }
+
+        // --- LEADERBOARD ---
+        async function fetchLeaderboard() {
+            const tbody = document.getElementById("leaderboard-table-body");
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-cyan-500 animate-pulse">Scanning Agent Database...</td></tr>`;
+            try {
+                const { data, error } = await supabase.from('profiles').select('username, xp, avatar_url').order('xp', { ascending: false }).limit(20);
+                if (error) throw error; tbody.innerHTML = ""; 
+                if (data.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">No active agents found.</td></tr>`; return; }
+                data.forEach((agent, index) => {
+                    const rank = index + 1; const level = Math.floor((agent.xp || 0) / XP_PER_LEVEL);
+                    let rankClass = "text-cyan-500"; let rowClass = "border-b border-cyan-500/20 hover:bg-cyan-500/10 transition";
+                    if (rank === 1) { rankClass = "text-yellow-400 text-xl"; rowClass += " bg-yellow-400/5"; }
+                    else if (rank === 2) { rankClass = "text-gray-300 text-lg"; } else if (rank === 3) { rankClass = "text-amber-600 text-lg"; }
+                    tbody.innerHTML += `<tr class="${rowClass}"><td class="py-4 px-4 font-bold ${rankClass} text-center">#${rank}</td><td class="py-4 px-4 flex items-center gap-3"><div class="w-8 h-8 rounded-full border border-cyan-500/50 overflow-hidden bg-black"><img src="${agent.avatar_url || DEFAULT_PFP}" class="w-full h-full object-cover"></div><span class="font-mono text-white tracking-wide">${agent.username || 'Unknown Agent'}</span></td><td class="py-4 px-4 text-cyan-300 font-bold font-mono">${agent.xp || 0} XP</td><td class="py-4 px-4 text-xs text-cyan-400">LVL ${level}</td></tr>`;
+                });
+            } catch (err) { tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-400">Connection Failed. Refresh to retry.</td></tr>`; }
+        }
+        
+        // --- AUTH UI ---
+        const authModal = document.getElementById("auth-modal"); const loginMsg = document.getElementById("login-msg");
+        document.getElementById("login-portal-btn").onclick = () => authModal.classList.remove("hidden");
+        document.getElementById("close-auth-modal").onclick = () => authModal.classList.add("hidden");
+        document.getElementById("go-to-signup-btn").onclick = () => { authModal.classList.add("hidden"); document.getElementById("views-container").childNodes.forEach(n => { if (n.nodeType === 1) n.classList.add("hidden"); }); document.getElementById("main-nav").classList.add("hidden"); document.getElementById("signup-view").classList.remove("hidden"); };
+        document.getElementById("cancel-signup-btn").onclick = () => { document.getElementById("signup-view").classList.add("hidden"); document.getElementById("main-nav").classList.remove("hidden"); document.getElementById("home-view").classList.remove("hidden"); authModal.classList.remove("hidden"); };
+
+// === SIGNUP & VERIFICATION LOGIC ===
+
+// 1. Handle "Send Verification Code" (Signup Step 1)
+document.getElementById("do-signup-btn").onclick = async () => {
+    const email = document.getElementById("signup-email").value.trim();
+    const username = document.getElementById("signup-username").value.trim();
+    const password = document.getElementById("signup-password").value.trim();
+    const terms = document.getElementById("terms-check").checked;
+    const msg = document.getElementById("signup-msg");
+    const btn = document.getElementById("do-signup-btn");
+
+    // Validation
+    if (!email || !username || !password) { 
+        msg.textContent = "Please fill in all fields."; 
+        msg.className = "mt-4 text-center text-sm font-bold min-h-[1.5rem] text-red-400"; 
+        return; 
+    }
+    if (!terms) { 
+        msg.textContent = "You must agree to the Security Rules."; 
+        msg.className = "mt-4 text-center text-sm font-bold min-h-[1.5rem] text-red-400"; 
+        return; 
+    }
+    if (!email.endsWith("@tup.edu.ph")) { 
+        msg.textContent = "Access Restricted: @tup.edu.ph email required."; 
+        msg.className = "mt-4 text-center text-sm font-bold min-h-[1.5rem] text-red-400"; 
+        return; 
+    }
+    
+    // Password Strength Check
+    const hasUpper = /[A-Z]/.test(password); 
+    const hasLower = /[a-z]/.test(password); 
+    const hasNumber = /[0-9]/.test(password); 
+    const hasSymbol = /[^A-Za-z0-9]/.test(password);
+    if (password.length < 10 || !hasUpper || !hasLower || !hasNumber || !hasSymbol) { 
+        msg.textContent = "Password too weak (See rules on left)."; 
+        msg.className = "mt-4 text-center text-sm font-bold min-h-[1.5rem] text-red-400"; 
+        return; 
+    }
+
+    btn.disabled = true; 
+    btn.textContent = "SENDING CODE..."; 
+    msg.textContent = "";
+
+    try {
+        // Create the user. Supabase automatically sends the OTP/Link for confirmation.
+        const { data, error } = await supabase.auth.signUp({ 
+            email: email, 
+            password: password, 
+            options: { data: { username: username } } 
+        });
+
+        if (error) throw error;
+
+        // Success: Switch to OTP View
+        document.getElementById("signup-form-container").classList.add("hidden");
+        document.getElementById("signup-otp-container").classList.remove("hidden");
+        document.getElementById("signup-otp-input").focus();
+        msg.textContent = "";
+
+    } catch (err) { 
+        msg.textContent = "Error: " + err.message; 
+        msg.className = "mt-4 text-center text-sm font-bold min-h-[1.5rem] text-red-400"; 
+    } finally { 
+        btn.disabled = false; 
+        btn.textContent = "SEND VERIFICATION CODE"; 
+    }
+};
+
+// 2. Handle "Activate Account" (Signup Step 2 - Verify OTP)
+document.getElementById("confirm-signup-btn").onclick = async () => {
+    const email = document.getElementById("signup-email").value.trim();
+    const token = document.getElementById("signup-otp-input").value.trim();
+    const msg = document.getElementById("signup-msg");
+    const btn = document.getElementById("confirm-signup-btn");
+
+    if (token.length < 6) {
+        msg.textContent = "Invalid Code Format.";
+        msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+        return;
+    }
+
+    btn.textContent = "ACTIVATING...";
+    btn.disabled = true;
+
+    try {
+        // Verify the Email OTP
+        const { data, error } = await supabase.auth.verifyOtp({
+            email: email,
+            token: token,
+            type: 'signup' // 'signup' type confirms the email and logs them in
+        });
+
+        if (error) throw error;
+
+        msg.textContent = "ACCOUNT ACTIVATED! 2FA ENFORCEMENT ENABLED.";
+        msg.className = "mt-4 text-center text-sm font-bold text-green-400 animate-pulse";
+
+        // Account is verified, now we proceed
+        currentUser = data.user;
+        
+        setTimeout(async () => {
+            alert("Registration Complete.\n\nSecurity Protocol: 2FA is now ACTIVE for all future logins.");
+            document.getElementById("signup-view").classList.add("hidden");
+            document.getElementById("main-nav").classList.remove("hidden");
+            document.getElementById("auth-modal").classList.add("hidden");
+            
+            // Clean up Signup Form
+            document.getElementById("signup-form-container").classList.remove("hidden");
+            document.getElementById("signup-otp-container").classList.add("hidden");
+            document.getElementById("signup-email").value = "";
+            document.getElementById("signup-password").value = "";
+            document.getElementById("signup-username").value = "";
+            document.getElementById("signup-otp-input").value = "";
+
+            await fetchProfile();
+            fetchLeaderboard();
+            document.querySelector('[data-view="dashboard"]').click();
+        }, 2000);
+
+    } catch (err) {
+        msg.textContent = "Activation Failed: " + err.message;
+        msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+        btn.textContent = "ACTIVATE ACCOUNT";
+        btn.disabled = false;
+    }
+};
+
+// 3. Handle "Back" Button in Signup
+document.getElementById("back-signup-btn").onclick = () => {
+    document.getElementById("signup-otp-container").classList.add("hidden");
+    document.getElementById("signup-form-container").classList.remove("hidden");
+    document.getElementById("signup-msg").textContent = "";
+};
+
+// 2. Handle "Activate Account" (Signup Step 2 - Verify OTP)
+document.getElementById("confirm-signup-btn").onclick = async () => {
+    const email = document.getElementById("signup-email").value.trim();
+    const token = document.getElementById("signup-otp-input").value.trim();
+    const msg = document.getElementById("signup-msg");
+    const btn = document.getElementById("confirm-signup-btn");
+
+    if (token.length < 6) {
+        msg.textContent = "Invalid Code Format.";
+        msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+        return;
+    }
+
+    btn.textContent = "ACTIVATING...";
+    btn.disabled = true;
+
+    try {
+        // Verify the Email OTP
+        const { data, error } = await supabase.auth.verifyOtp({
+            email: email,
+            token: token,
+            type: 'signup' // 'signup' type confirms the email and logs them in
+        });
+
+        if (error) throw error;
+
+        msg.textContent = "ACCOUNT ACTIVATED! 2FA ENFORCEMENT ENABLED.";
+        msg.className = "mt-4 text-center text-sm font-bold text-green-400 animate-pulse";
+
+        // Account is verified, now we proceed
+        currentUser = data.user;
+        
+        setTimeout(async () => {
+            alert("Registration Complete.\n\nSecurity Protocol: 2FA is now ACTIVE for all future logins.");
+            document.getElementById("signup-view").classList.add("hidden");
+            document.getElementById("main-nav").classList.remove("hidden");
+            document.getElementById("auth-modal").classList.add("hidden");
+            
+            // Clean up Signup Form
+            document.getElementById("signup-form-container").classList.remove("hidden");
+            document.getElementById("signup-otp-container").classList.add("hidden");
+            document.getElementById("signup-email").value = "";
+            document.getElementById("signup-password").value = "";
+            document.getElementById("signup-username").value = "";
+            document.getElementById("signup-otp-input").value = "";
+
+            await fetchProfile();
+            fetchLeaderboard();
+            document.querySelector('[data-view="dashboard"]').click();
+        }, 2000);
+
+    } catch (err) {
+        msg.textContent = "Activation Failed: " + err.message;
+        msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+        btn.textContent = "ACTIVATE ACCOUNT";
+        btn.disabled = false;
+    }
+};
+
+// 3. Handle "Back" Button in Signup
+document.getElementById("back-signup-btn").onclick = () => {
+    document.getElementById("signup-otp-container").classList.add("hidden");
+    document.getElementById("signup-form-container").classList.remove("hidden");
+    document.getElementById("signup-msg").textContent = "";
+};
+
+        document.getElementById("signup-password").addEventListener("input", (e) => {
+            const val = e.target.value; const msg = document.getElementById("password-strength-msg"); let strength = 0;
+            if(val.length >= 8) strength++; if(/[A-Z]/.test(val)) strength++; if(/[0-9]/.test(val)) strength++; if(/[^A-Za-z0-9]/.test(val)) strength++;
+            if(val.length === 0) { msg.textContent = ""; return; }
+            if(strength < 2) { msg.textContent = "Weak 🔴"; msg.className = "text-xs mt-1 text-red-500 font-bold"; } else if(strength < 4) { msg.textContent = "Medium 🟡"; msg.className = "text-xs mt-1 text-yellow-400 font-bold"; } else { msg.textContent = "Strong 🟢"; msg.className = "text-xs mt-1 text-green-400 font-bold"; }
+        });
+
+        function setupPasswordToggle(inputId, toggleId) {
+            const input = document.getElementById(inputId); const btn = document.getElementById(toggleId);
+            btn.onclick = () => {
+                const type = input.getAttribute('type') === 'password' ? 'text' : 'password'; input.setAttribute('type', type);
+                if (type === 'password') { btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>`; } 
+                else { btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>`; }
+            };
+        }
+        setupPasswordToggle('login-password', 'toggle-login-password'); setupPasswordToggle('signup-password', 'toggle-signup-password');
+
+       // === 2FA LOGIN LOGIC (Password First -> Then OTP) ===
+
+// PHASE 1: VERIFY PASSWORD & SEND OTP
+const loginBtn = document.getElementById("perform-login-btn");
+
+if (loginBtn) {
+    loginBtn.onclick = async () => { 
+        const email = document.getElementById("login-email").value.trim(); 
+        const password = document.getElementById("login-password").value.trim(); 
+        const msg = document.getElementById("login-msg");
+
+        if (!email || !password) { 
+            msg.textContent = "Please fill in all fields."; 
+            msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+            return; 
+        } 
+
+        // 1. Verify Credentials
+        loginBtn.textContent = "VERIFYING...";
+        loginBtn.disabled = true;
+        msg.textContent = "";
+
+        try { 
+            // A. Check Password
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password }); 
+            
+            if (error) throw error; 
+
+            // B. Password Good -> Sign Out immediately to enforce 2nd Factor
+            await supabase.auth.signOut();
+
+            // C. Send OTP
+            loginBtn.textContent = "SENDING CODE...";
+            const { error: otpError } = await supabase.auth.signInWithOtp({ email: email });
+            
+            if (otpError) throw otpError;
+
+            // D. Switch UI to OTP Mode
+            document.getElementById("login-fields-container").classList.add("hidden");
+            
+            // Show OTP Container
+            const otpContainer = document.getElementById("otp-verify-container");
+            otpContainer.classList.remove("hidden");
+            
+            // Update the message inside the OTP container
+            otpContainer.innerHTML = `
+                <p class="text-sm text-cyan-400 mb-2 font-bold">PASSWORD VERIFIED</p>
+                <p class="text-xs text-yellow-200 mb-4 animate-pulse">A verification code has been sent to your TUP email.</p>
+                
+                <input id="otp-code-input" type="text" placeholder="######" class="w-full mb-4 p-3 rounded bg-black/50 border border-yellow-400 text-center text-2xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+                
+                <div class="auth-item-container mb-3">
+                    <button id="verify-otp-btn" class="btn btn-green w-full font-bold text-lg">VERIFY & SIGN IN</button>
+                </div>
+                <button id="cancel-otp-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Cancel</button>
+            `;
+
+            // Re-attach event listeners for the new elements we just injected
+            attachOtpListeners();
+            document.getElementById("otp-code-input").focus();
+
+        } catch (err) { 
+            msg.textContent = "Login Failed: " + err.message; 
+            msg.className = "mt-4 text-center text-sm font-bold text-red-400";
+            loginBtn.textContent = "Sign In";
+            loginBtn.disabled = false;
+        }
+    };
+}
+
+// Helper function to attach logic to the new OTP buttons
+function attachOtpListeners() {
+    // VERIFY BUTTON LOGIC
+    document.getElementById("verify-otp-btn").onclick = async () => {
+        const email = document.getElementById("login-email").value.trim();
+        const token = document.getElementById("otp-code-input").value.trim();
+        const msg = document.getElementById("login-msg"); // We use the main modal msg area
+        const btn = document.getElementById("verify-otp-btn");
+
+        if (token.length < 6) {
+            alert("Please enter the full 6-digit code.");
+            return;
+        }
+
+        btn.textContent = "FINALIZING...";
+        btn.disabled = true;
+
+        try {
+            const { data, error } = await supabase.auth.verifyOtp({
+                email: email,
+                token: token,
+                type: 'email'
+            });
+
+            if (error) throw error;
+
+            // SUCCESS
+            currentUser = data.user;
+            document.getElementById("auth-modal").innerHTML = `
+                <div class="hud rounded-xl p-8 w-11/12 max-w-xs text-center relative">
+                    <h1 class="text-2xl font-bold mb-4 text-green-400">ACCESS GRANTED</h1>
+                    <p class="text-cyan-300">Welcome back, Agent.</p>
+                    <p class="text-xs text-gray-400 mt-2">Loading Dashboard...</p>
+                </div>
+            `;
+            
+            setTimeout(async () => { 
+                location.reload(); // Reload to refresh all state
+            }, 1500);
+
+        } catch (err) {
+            alert("Invalid Code: " + err.message);
+            btn.textContent = "VERIFY & SIGN IN";
+            btn.disabled = false;
+        }
+    };
+
+    // CANCEL BUTTON LOGIC
+    document.getElementById("cancel-otp-btn").onclick = () => {
+        document.getElementById("otp-verify-container").classList.add("hidden");
+        document.getElementById("login-fields-container").classList.remove("hidden");
+        
+        // Reset Login Button
+        const loginBtn = document.getElementById("perform-login-btn");
+        loginBtn.textContent = "Sign In";
+        loginBtn.disabled = false;
+        document.getElementById("login-msg").textContent = "";
+    };
+}
+
+        // --- ACCOUNT ---
+        document.getElementById("settings-toggle-btn").onclick = (e) => { e.stopPropagation(); document.getElementById("settings-dropdown").classList.toggle("active"); };
+        document.body.onclick = () => { document.getElementById("settings-dropdown").classList.remove("active"); };
+        document.getElementById("logout-btn").onclick = async () => { await supabase.auth.signOut(); location.reload(); };
+
+        document.getElementById("profile-img-container").onclick = () => { if(currentUser) document.getElementById("profile-modal").classList.remove("hidden"); };
+        document.getElementById("close-profile-modal").onclick = () => document.getElementById("profile-modal").classList.add("hidden");
+
+        // Handler for the "Edit Profile" button in the dropdown
+        document.getElementById("nav-edit-profile").onclick = () => {
+            if (currentUser) {
+                document.getElementById("settings-dropdown").classList.remove("active"); // Close dropdown
+                document.getElementById("profile-modal").classList.remove("hidden");    // Open Profile Modal
+            } else {
+                alert("Please log in first.");
+            }
+        };
+
+        // Handler for the "Security / Passkey" button in the dropdown
+        document.getElementById("nav-security").onclick = () => {
+            if (currentUser) {
+                document.getElementById("settings-dropdown").classList.remove("active"); // Close dropdown
+                document.getElementById("profile-modal").classList.remove("hidden");    // Open Profile Modal
+            } else {
+                alert("Please log in first.");
+            }
+        };
+        
+        async function updateProfileAvatar(url) { await supabase.from('profiles').update({ avatar_url: url }).eq('id', currentUser.id); currentProfile.avatar_url = url; updateUI(currentProfile); fetchLeaderboard(); }
+
+        document.getElementById("change-password-btn").onclick = async () => {
+        const btn = document.getElementById("change-password-btn");
+        const msg = document.getElementById("password-change-msg");
+        const newPassword = document.getElementById("new-password-input").value;
+        const confirmPassword = document.getElementById("confirm-password-input").value;
+
+    if (newPassword !== confirmPassword) {
+        msg.textContent = "Error: Passwords do not match.";
+        msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+        return;
+    }
+    if (newPassword.length < 10) {
+         msg.textContent = "Error: Password must be at least 10 characters.";
+        msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+        return;
+    }
+    
+    btn.disabled = true; btn.textContent = "PROCESSING...";
+    
+    try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+        if (error) {
+            msg.textContent = "Error: " + error.message + ". Try logging in again first.";
+            msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+        } else {
+            msg.textContent = "Password Updated Successfully!";
+            msg.className = "text-xs mt-1 text-green-400 h-4 text-center";
+            document.getElementById("new-password-input").value = "";
+            document.getElementById("confirm-password-input").value = "";
+        }
+    } catch (err) {
+        msg.textContent = "System Error during update.";
+        msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+    } finally {
+        btn.disabled = false; btn.textContent = "UPDATE PASSWORD";
+    }
+};
+
+// === NEW: DELETE ACCOUNT LOGIC ===
+document.getElementById("delete-account-btn").onclick = async () => {
+    const msg = document.getElementById("delete-account-msg");
+    
+    if (!confirm("CRITICAL WARNING: This action will permanently delete your account and all data. Are you sure you want to proceed?")) {
+        msg.textContent = "Deletion aborted.";
+        msg.className = "text-xs mt-1 text-cyan-400 h-4 text-center";
+        return;
+    }
+
+    msg.textContent = "Executing Deletion Protocol...";
+    msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+
+    try {
+        // Call the Supabase RPC function (delete_own_account)
+        const { error: rpcError } = await supabase.rpc('delete_own_account');
+
+        if (rpcError) {
+            msg.textContent = "Deletion Error: " + rpcError.message + ". Try logging in again.";
+            msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+        } else {
+            // Account successfully deleted (via RPC). Reload to clear state.
+            alert("Account successfully deleted. Goodbye, Agent.");
+            location.reload();
+        }
+    } catch (e) {
+        msg.textContent = "System Exception during deletion.";
+        msg.className = "text-xs mt-1 text-red-400 h-4 text-center";
+    }
+};
+
+        // --- UI ---
+        function getRankName(level) { if (level >= 100) return "MASTER"; if (level >= 75) return "ELITE"; if (level >= 50) return "SPECIALIST"; if (level >= 25) return "AGENT"; return "NOVICE"; }
+        function updateUI(profile) {
+            if (!profile) { 
+                document.getElementById("profile-name").textContent = "GUEST_OBSERVER"; document.getElementById("profile-img").src = DEFAULT_PFP; document.getElementById("xp").textContent = 0; document.getElementById("xp-bar").style.width = "0%";
+                document.getElementById("login-container").classList.remove("hidden"); document.getElementById("account-settings-container").classList.add("hidden"); 
+                document.getElementById("dashboard-stats").classList.add('opacity-50'); document.getElementById("dashboard-login-msg").classList.remove("hidden"); populateQuests([]); 
+            } else {
+                const totalXP = profile.xp || 0; const currentLevel = Math.floor(totalXP / XP_PER_LEVEL);
+                document.getElementById("profile-name").textContent = profile.username ? profile.username.toUpperCase() : "AGENT"; document.getElementById("profile-level").textContent = `LEVEL ${currentLevel}`; document.getElementById("profile-rank").textContent = getRankName(currentLevel); document.getElementById("profile-img").src = profile.avatar_url || DEFAULT_PFP; document.getElementById("xp").textContent = totalXP % XP_PER_LEVEL; document.getElementById("xp-bar").style.width = `${(totalXP % XP_PER_LEVEL) / XP_PER_LEVEL * 100}%`;
+                document.getElementById("login-container").classList.add("hidden"); document.getElementById("account-settings-container").classList.remove("hidden"); 
+                document.getElementById("dashboard-stats").classList.remove('opacity-50'); document.getElementById("dashboard-login-msg").classList.add("hidden");
+                const mods = profile.completed_modules || []; 
+            updateHexMapLines(mods); 
+            updateDashboardStats(profile, mods); 
+            populateQuests(mods);
+
+            // === NEW BADGE RENDERING LOGIC (FIXED) ===
+            const badgeContainer = document.getElementById("earned-badges");
+            badgeContainer.innerHTML = ""; // Clear current badges
+
+            if (mods.length === 0) {
+                badgeContainer.innerHTML = `<span class="text-gray-500 text-xs italic p-2">No badges earned yet. Complete modules to earn them.</span>`;
+            } else {
+                cachedModules.forEach(module => {
+                    if (mods.includes(module.name)) {
+                        const badgeData = BADGE_ASSETS[module.id];
+                        if (badgeData) {
+                            const badgeEl = document.createElement("div");
+                            badgeEl.className = "relative group cursor-pointer transition-transform hover:scale-110";
+                            // Render SVG instead of IMG
+                            badgeEl.innerHTML = `
+                                <div class="w-12 h-12 rounded-full bg-cyan-900/40 border border-cyan-500/50 flex items-center justify-center shadow-[0_0_10px_rgba(0,255,255,0.2)]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" style="filter: drop-shadow(0 0 5px cyan);">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="${badgeData.path}" />
+                                    </svg>
+                                </div>
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max px-2 py-1 bg-black/90 border border-cyan-500/30 text-cyan-300 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                                    <p class="font-bold">${badgeData.name}</p>
+                                    <p class="text-gray-400 text-[9px]">${badgeData.desc}</p>
+                                </div>
+                            `;
+                            badgeContainer.appendChild(badgeEl);
+                        }
+                    }
+                });
+            }
+        }
+     }
+        async function addXP(amount) { if (!currentUser) return; const newXP = (currentProfile.xp || 0) + amount; currentProfile.xp = newXP; updateUI(currentProfile); await supabase.from('profiles').update({ xp: newXP }).eq('id', currentUser.id); fetchLeaderboard(); }
+        function updateDashboardStats(profile, mods) { document.getElementById('dash-modules').innerHTML = `${mods.length} <span class="text-2xl text-cyan-300">/ ${cachedModules.length}</span>`; document.getElementById('dash-xp').textContent = profile.xp; document.getElementById('dash-badges').textContent = profile.badges_count || 0; }
+        
+        function updateHexMapLines(mods) {
+            document.querySelectorAll('.hex-lines path').forEach(l => l.classList.remove('active-path'));
+            document.querySelectorAll('.hex').forEach((hex) => { const index = parseInt(hex.getAttribute('data-index')); const modName = cachedModules[index-1]?.name; if(mods.includes(modName)) hex.classList.add('completed-hex'); });
+            if(cachedModules.length === 0) return;
+            const isDone = (idx) => mods.includes(cachedModules[idx-1]?.name);
+            if(isDone(1)) { document.getElementById('line-m1-m2').classList.add('active-path'); document.getElementById('line-m1-m3').classList.add('active-path'); }
+            if(isDone(2)) { document.getElementById('line-m2-m4').classList.add('active-path'); document.getElementById('line-m2-m5').classList.add('active-path'); }
+            if(isDone(3)) { document.getElementById('line-m3-m5').classList.add('active-path'); document.getElementById('line-m3-m6').classList.add('active-path'); }
+            if(isDone(4)) document.getElementById('line-m4-m7').classList.add('active-path');
+            if(isDone(5)) { document.getElementById('line-m5-m7').classList.add('active-path'); document.getElementById('line-m5-m8').classList.add('active-path'); }
+            if(isDone(6)) document.getElementById('line-m6-m8').classList.add('active-path');
+            if(isDone(7)) document.getElementById('line-m7-m9').classList.add('active-path');
+            if(isDone(8)) document.getElementById('line-m8-m9').classList.add('active-path');
+            if(mods.length === 9) document.body.classList.add('all-modules-complete');
+        }
+        function populateQuests(mods) { 
+            const list = document.getElementById("quest-list"); list.innerHTML = ""; 
+            let modulesToRender = cachedModules.length > 0 ? cachedModules : [{id:1, name:"Fundamentals"},{id:2, name:"Threats"},{id:3, name:"Identity"},{id:4, name:"Encryption"},{id:5, name:"Network Security"},{id:6, name:"Best Practices"},{id:7, name:"Security Policies"},{id:8, name:"Incident Response"},{id:9, name:"Ethics & Law"}];
+            modulesToRender.forEach(m => { const done = mods.includes(m.name); list.innerHTML += `<li class="flex justify-between p-3 bg-cyan-900/10 rounded cursor-pointer hover:bg-cyan-800/20" onclick="displayModuleContent(${m.id})"><span>M${m.id}: ${m.name}</span><span>${done ? '✅' : '🔒'}</span></li>`; }); 
+        }
+        function openModule(moduleId) { if(!currentUser) { alert("Restricted Access: Sign in or Sign up."); return; } const module = cachedModules.find(m => m.id === moduleId); if(module) displayModuleContent(module.id); }
+
+        document.querySelectorAll(".nav-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".nav-btn").forEach(b => { b.classList.remove("active-nav-btn", "text-cyan-300"); b.classList.add("text-cyan-500"); });
+                btn.classList.add("active-nav-btn", "text-cyan-300"); btn.classList.remove("text-cyan-500");
+                document.getElementById("views-container").childNodes.forEach(n => { if (n.nodeType === 1) n.classList.add("hidden"); });
+                document.getElementById(`${btn.dataset.view}-view`).classList.remove("hidden");
+                if(btn.dataset.view === "leaderboard") fetchLeaderboard();
+            });
+        });
+
+        // --- MODULE CONTENT ---
+        let currentModuleObj = null;
+        function displayModuleContent(id) {
+            if(typeof id === 'object') id = id.id; 
+            currentModuleObj = cachedModules.find(m => m.id === id); if(!currentModuleObj) return;
+            document.getElementById("module-modal").classList.remove("hidden"); document.getElementById("module-title").textContent = currentModuleObj.name;
+            document.getElementById("content-selection").classList.remove("hidden"); document.getElementById("video-content-area").classList.add("hidden");
+            document.getElementById("slideshow-content-area").classList.add("hidden"); document.getElementById("quiz-area").classList.add("hidden");
+            document.getElementById("proceed-btn-container").classList.add("hidden");
+        }
+        document.getElementById("select-video-btn").onclick = () => { 
+            document.getElementById("content-selection").classList.add("hidden"); document.getElementById("video-content-area").classList.remove("hidden");
+            document.getElementById('player-placeholder').innerHTML = "";
+            youtubePlayer = new YT.Player('player-placeholder', { height: '100%', width: '100%', videoId: currentModuleObj.video_id, playerVars: { 'autoplay': 1 }, events: { 'onStateChange': (e) => { if (e.data == 0) document.getElementById("proceed-btn-container").classList.remove("hidden"); } } });
+        };
+        document.getElementById("select-slideshow-btn").onclick = () => {
+            document.getElementById("content-selection").classList.add("hidden"); document.getElementById("slideshow-content-area").classList.remove("hidden");
+            let url = currentModuleObj.slideshow_url; if(url && url.includes("canva.com") && url.includes("/edit")) url = url.split("/edit")[0] + "/view?embed";
+            document.getElementById("slideshow-frame").src = url;
+        };
+        document.getElementById("manual-finish-btn").onclick = () => { document.getElementById("manual-finish-btn").classList.add("hidden"); document.getElementById("proceed-btn-container").classList.remove("hidden"); };
+        document.getElementById("video-watched-btn").onclick = () => {
+            const alreadyCompleted = currentProfile.completed_modules && currentProfile.completed_modules.includes(currentModuleObj.name);
+            if(!alreadyCompleted) { addXP(100); alert("Content Complete! +100 XP"); } else { alert("Review Mode: No extra XP awarded."); }
+            document.getElementById("proceed-btn-container").classList.add("hidden"); document.getElementById("video-content-area").classList.add("hidden"); document.getElementById("slideshow-content-area").classList.add("hidden");
+            if(youtubePlayer && typeof youtubePlayer.stopVideo === 'function') youtubePlayer.stopVideo();
+            document.getElementById("quiz-area").classList.remove("hidden"); loadQuizForModule(currentModuleObj.id);
+        };
+        document.getElementById("close-modal").onclick = () => { document.getElementById("module-modal").classList.add("hidden"); if(youtubePlayer && typeof youtubePlayer.destroy === 'function') { youtubePlayer.destroy(); youtubePlayer = null; } else { document.getElementById("player-placeholder").innerHTML = ""; } document.getElementById("slideshow-frame").src = ""; };
+
+        async function loadQuizForModule(mid) {
+            const container = document.getElementById("quiz-container"); container.innerHTML = "<p class='text-center animate-pulse text-cyan-500'>Loading secure transmission...</p>";
+            document.getElementById("quiz-feedback").textContent = ""; document.getElementById("submit-quiz-btn").classList.add("hidden"); document.getElementById("quiz-next-btn").classList.add("hidden");
+            const { data } = await supabase.from('questions').select('*').eq('module_id', mid);
+            if(data && data.length > 0) {
+                loadedQuestions = data.sort(() => 0.5 - Math.random()).slice(0, 3); userAnswers = {}; currentQuestionIndex = 0; renderCurrentQuestion();
+                document.getElementById("quiz-next-btn").onclick = () => { if(userAnswers[loadedQuestions[currentQuestionIndex].id] === undefined) { alert("Select an option!"); return; } currentQuestionIndex++; renderCurrentQuestion(); };
+                document.getElementById("submit-quiz-btn").onclick = async () => {
+                    let correctCount = 0; loadedQuestions.forEach(q => { if(userAnswers[q.id] === q.correct_index) correctCount++; });
+                    if(correctCount === loadedQuestions.length) {
+                         document.getElementById("quiz-feedback").textContent = "EXCELLENT WORK. +25 XP"; document.getElementById("quiz-feedback").className = "mt-4 font-bold text-center text-green-400";
+                         let completed = currentProfile.completed_modules || [];
+                         if(!completed.includes(currentModuleObj.name)) { addXP(25); await supabase.from('user_completed_modules').insert({ user_id: currentUser.id, module_id: mid }); await fetchProfile(); }
+                         document.getElementById("submit-quiz-btn").classList.add("hidden"); document.getElementById("quiz-container").innerHTML = "";
+                    } else { document.getElementById("quiz-feedback").textContent = `FAILED. ${correctCount}/${loadedQuestions.length} Correct. Try again.`; document.getElementById("quiz-feedback").className = "mt-4 font-bold text-center text-red-400"; setTimeout(() => { loadQuizForModule(mid); }, 2000); }
+                };
+            } else { container.innerHTML = "<p class='text-red-400'>No diagnostic protocols found.</p>"; }
+        }
+        function renderCurrentQuestion() {
+            const container = document.getElementById("quiz-container"); container.innerHTML = ""; 
+            const q = loadedQuestions[currentQuestionIndex]; const isLast = currentQuestionIndex === loadedQuestions.length - 1;
+            document.getElementById("quiz-step-indicator").textContent = `QUESTION ${currentQuestionIndex + 1} OF ${loadedQuestions.length}`;
+            const qTitle = document.createElement("h4"); qTitle.className = "text-lg font-bold mb-4 text-white"; qTitle.textContent = q.question_text; container.appendChild(qTitle);
+            if (q.choices && Array.isArray(q.choices)) {
+                q.choices.forEach((choiceText, index) => {
+                    const btn = document.createElement("button");
+                    btn.className = "w-full text-left p-3 mb-2 rounded border border-cyan-500/30 hover:bg-cyan-500/20 transition-all duration-200 text-cyan-100 font-mono text-sm";
+                    const label = String.fromCharCode(65 + index); btn.innerHTML = `<span class="text-cyan-500 font-bold mr-2">${label}.</span> ${choiceText}`;
+                    if(userAnswers[q.id] === index) { btn.className = "w-full text-left p-3 mb-2 rounded border border-cyan-400 bg-cyan-900/60 text-white font-bold shadow-[0_0_10px_rgba(0,255,255,0.3)]"; btn.innerHTML = `<span class="text-white font-bold mr-2">${label}.</span> ${choiceText}`; }
+                    btn.onclick = () => { userAnswers[q.id] = index; renderCurrentQuestion(); }; container.appendChild(btn);
+                });
+            } else { container.innerHTML += "<p class='text-red-400'>Error: Invalid question format.</p>"; }
+            if(isLast) { document.getElementById("quiz-next-btn").classList.add("hidden"); document.getElementById("submit-quiz-btn").classList.remove("hidden"); } else { document.getElementById("quiz-next-btn").classList.remove("hidden"); document.getElementById("submit-quiz-btn").classList.add("hidden"); }
+        }
+
+        function launchGame(gameType) {
+            // === SECURITY CHECK ===
+            if (!currentProfile) {
+                alert("ACCESS DENIED: Agent identity not verified. Please sign in to access simulations.");
+                return;
+            }
+            const completedCount = currentProfile.completed_modules ? currentProfile.completed_modules.length : 0;
+            const requiredModules = 9;
+            if (completedCount < requiredModules) {
+                alert(`⚠️ SIMULATION LOCKED ⚠️\n\nProtocol Violation: You must complete all ${requiredModules} Learning Modules to unlock the Defense Simulations.\n\nCurrent Progress: ${completedCount}/${requiredModules} Modules Completed.`);
+                return;
+            }
+            const menu = document.getElementById('game-selection-area'); 
+            if(menu) menu.classList.add('hidden');
+            
+            // Hide all other game containers
+            ['game-concept', 'game-threat', 'game-login', 'game-decrypt', 'game-network', 'game-clicks', 'game-policy', 'game-incident', 'game-ethics'].forEach(id => { 
+                const el = document.getElementById(id); 
+                if(el) el.classList.add('hidden'); 
+            });
+
+            // Show the specific game container
+            const gameDiv = document.getElementById(`game-${gameType}`);
+            if(gameDiv) {
+                gameDiv.classList.remove('hidden');
+                
+                // RESET TO START SCREEN
+                // 1. Show Start Screen
+                const startScreen = document.getElementById(`${gameType}-start-screen`);
+                if(startScreen) startScreen.classList.remove('hidden');
+                
+                // 2. Hide Game Interface
+                const gameInterface = document.getElementById(`${gameType}-game-interface`);
+                if(gameInterface) gameInterface.classList.add('hidden');
+            }
+        }
+
+        function beginGameSession(gameType) {
+            // 1. Hide Start Screen
+            const startScreen = document.getElementById(`${gameType}-start-screen`);
+            if(startScreen) startScreen.classList.add('hidden');
+
+            // 2. Show Game Interface
+            const gameInterface = document.getElementById(`${gameType}-game-interface`);
+            if(gameInterface) gameInterface.classList.remove('hidden');
+
+            // 3. Trigger Actual Game Logic
+            if(gameType === 'concept') startConceptMatch();
+            if(gameType === 'threat') startThreatWhack();
+            if(gameType === 'login') startLoginPuzzle();
+            if(gameType === 'decrypt') startDecryptor();
+            if(gameType === 'network') startNetworkGame();
+            if(gameType === 'clicks') startSafeClicks();
+            if(gameType === 'policy') startPolicyGame();
+            if(gameType === 'incident') startIncidentRace();
+            if(gameType === 'ethics') startEthicsGame();
+        }
+
+        // === XP CALCULATION SYSTEM ===
+        async function awardGameXP(gameName, metric, type) {
+            const BASE_XP = 40;
+            let bonusXP = 0;
+
+            // 1. Calculate Bonus based on performance
+            if (type === 'score') {
+                // For score-based games (Threat Whack, Clicks, etc.)
+                // Bonus = 50% of the score earned
+                bonusXP = Math.max(0, Math.floor(metric * 0.5)); 
+            } 
+            else if (type === 'time') {
+                // For time-based games (Concept Match)
+                // Bonus = Faster is better. (Max 60s - Time Taken)
+                // Example: Finish in 20s = 40 Bonus XP
+                bonusXP = Math.max(0, 60 - metric); 
+            }
+            else if (type === 'completion') {
+                // For puzzle games (Login, Decryptor)
+                // Fixed bonus for finishing
+                bonusXP = 20;
+            }
+
+            const totalXP = BASE_XP + bonusXP;
+
+            // 2. Save to Database
+            await addXP(totalXP);
+
+            // 3. visual Feedback
+            alert(`🎉 MISSION ACCOMPLISHED: ${gameName.toUpperCase()} 🎉\n\n🛡️ Base Security XP: ${BASE_XP}\n⚡ Performance Bonus: ${bonusXP}\n\nTOTAL EARNED: +${totalXP} XP`);
+        }
+
+        function showGameSelect() {
+            ['game-concept', 'game-threat', 'game-login', 'game-decrypt', 'game-network', 'game-clicks', 'game-policy', 'game-incident', 'game-ethics'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+            document.getElementById('game-selection-area').classList.remove('hidden');
+            if(window.threatInterval) clearInterval(window.threatInterval); if(window.netInterval) clearInterval(window.netInterval); if(window.clickInterval) clearInterval(window.clickInterval); if(window.incidentInterval) clearInterval(window.incidentInterval);
+        }
+
+        // 1. Concept Match
+        const concepts = [{ t: "Phishing", d: "Deceptive Email", icon: "📧" }, { t: "Malware", d: "Malicious Soft", icon: "🦠" }, { t: "Firewall", d: "Net Barrier", icon: "🧱" }, { t: "Encryption", d: "Hidden Data", icon: "🔒" }, { t: "2FA", d: "Double Check", icon: "✅" }, { t: "Botnet", d: "Zombie PC", icon: "🤖" }];
+        let cmSelected = [], cmMatched = 0, cmLocked = false, cmStartTime = 0, cmTimerInterval = null;
+        function updateCMTimer() { const elapsed = Math.floor((Date.now() - cmStartTime) / 1000); const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0'); const seconds = String(elapsed % 60).padStart(2, '0'); document.getElementById('cm-time').textContent = `${minutes}:${seconds}`; }
+        function startConceptMatch() {
+            if (cmTimerInterval) clearInterval(cmTimerInterval); cmMatched = 0; cmSelected = []; cmLocked = false;
+            document.getElementById('cm-moves').textContent = "0"; document.getElementById('cm-time').textContent = "00:00"; document.getElementById('cm-msg').classList.add('hidden');
+            const grid = document.getElementById('cm-grid'); grid.innerHTML = "";
+            const NUM_PAIRS = 6;
+            // 1. Shuffle the full list of concepts
+            let shuffledConcepts = [...concepts].sort(() => 0.5 - Math.random());
+            // 2. Select only the first NUM_PAIRS (6)
+            let selectedConcepts = shuffledConcepts.slice(0, NUM_PAIRS);            
+            let cards = []; 
+            selectedConcepts.forEach((c, i) => { // NOTE: Use selectedConcepts here
+                cards.push({ val: c.t, id: i, type: 'term', icon: c.icon }); 
+                cards.push({ val: c.d, id: i, type: 'def', icon: c.icon }); 
+            });
+            
+            // Shuffle the final cards for placement on the grid
+            cards.sort(() => 0.5 - Math.random()); 
+            
+            cards.forEach(c => {
+                const card = document.createElement('div'); card.className = "cm-card"; card.dataset.id = c.id; card.dataset.type = c.type;
+                card.onclick = () => handleConceptClick(card, c);
+                // Displaying the term/definition is intentional for the back of the card
+                const displayValue = (c.type === 'term') ? c.val : c.val; 
+                card.innerHTML = `<div class="cm-card-inner"><div class="cm-card-front">?</div><div class="cm-card-back"><div class="flex flex-col items-center"><div class="text-2xl">${c.icon}</div><div class="text-xs mt-1">${displayValue}</div></div></div></div>`;
+                grid.appendChild(card);
+            });
+            cmStartTime = Date.now(); cmTimerInterval = setInterval(updateCMTimer, 1000);
+        }
+        function handleConceptClick(el, data) {
+            if (el.classList.contains('flipped') || cmLocked) return; el.classList.add('flipped'); const backFace = el.querySelector('.cm-card-back'); cmSelected.push({ el, data, back: backFace });
+            if (cmSelected.length === 2) {
+                cmLocked = true; const [a, b] = cmSelected; document.getElementById('cm-moves').textContent = parseInt(document.getElementById('cm-moves').textContent) + 1;
+                if (a.data.id === b.data.id && a.data.type !== b.data.type) { a.back.classList.add('matched'); b.back.classList.add('matched'); cmSelected = []; cmMatched++; cmLocked = false; if (cmMatched === concepts.length) { 
+                if (cmTimerInterval) clearInterval(cmTimerInterval);
+                
+                // Calculate time taken (Metric for XP)
+                const timeTaken = Math.floor((Date.now() - cmStartTime) / 1000);
+                
+                document.getElementById('cm-msg').textContent = "SYSTEM SYNCED! All Concepts Matched!"; 
+                document.getElementById('cm-msg').classList.remove('hidden'); 
+                
+                // AWARD XP
+                // Passes 'timeTaken' so the helper can calculate: Bonus = 60 - timeTaken
+                awardGameXP('Concept Match', timeTaken, 'time');
+            }
+                } else { a.back.classList.add('mismatch'); b.back.classList.add('mismatch'); setTimeout(() => { a.back.classList.remove('mismatch'); b.back.classList.remove('mismatch'); a.el.classList.remove('flipped'); b.el.classList.remove('flipped'); cmSelected = []; cmLocked = false; }, 1000); }
+            }
+        }
+
+        // 2. Threat Whack
+        let threatScore = 0;
+        function startThreatWhack() {
+            threatScore = 0; document.getElementById('tw-score').textContent = "0"; document.getElementById('tw-start').classList.add('hidden');
+            const grid = document.getElementById('tw-grid'); grid.innerHTML = "";
+            for(let i=0; i<9; i++) { let cell = document.createElement('div'); cell.className = "bg-gray-800 rounded h-24 border border-gray-600 relative overflow-hidden"; cell.id = `tw-cell-${i}`; grid.appendChild(cell); }
+            let time = 30; const timerEl = document.getElementById('tw-timer');
+window.threatInterval = setInterval(() => { 
+                time--; 
+                timerEl.textContent = time; 
+                spawnGameEntity(); 
+                
+                if(time <= 0) { 
+                    clearInterval(window.threatInterval); 
+                    document.getElementById('tw-start').textContent = `Game Over! Score: ${threatScore}`; 
+                    document.getElementById('tw-start').classList.remove('hidden'); 
+                    
+                    // AWARD XP - Uses the final threatScore as the metric
+                    awardGameXP('Threat Whack', threatScore, 'score');
+                } 
+            }, 800);        
+        
+        }
+
+        function showScoreFeedback(parent, text, colorClass) { const feedback = document.createElement('div'); feedback.textContent = text; feedback.className = `absolute inset-0 flex items-center justify-center font-bold text-2xl pointer-events-none ${colorClass} float-up`; parent.appendChild(feedback); setTimeout(() => feedback.remove(), 800); }
+        function spawnGameEntity() {
+            const idx = Math.floor(Math.random() * 9); const cell = document.getElementById(`tw-cell-${idx}`); if(cell.hasChildNodes()) return;
+            const isThreat = Math.random() > 0.3; const el = document.createElement('div'); el.className = "absolute inset-0 flex items-center justify-center text-4xl cursor-pointer hover:scale-110 transition select-none";
+            if (isThreat) { el.textContent = "👾"; el.onclick = () => { threatScore += 10; document.getElementById('tw-score').textContent = threatScore; showScoreFeedback(cell, "+10 pts", "text-green-400"); el.remove(); }; } 
+            else { el.textContent = "🛡️"; el.onclick = () => { threatScore -= 10; document.getElementById('tw-score').textContent = threatScore; showScoreFeedback(cell, "-10 pts", "text-red-400"); el.remove(); }; }
+            cell.appendChild(el); setTimeout(() => { if(el.parentElement) el.remove(); }, 750);
+        }
+
+        // 3. Login Guy
+        const loginScenarioPool = [
+            { q: "INITIATE_PASSWORD_CREATION...", context: "SYSTEM ALERT: WEAK CREDENTIALS DETECTED.\nREQUIRED: CREATE NEW ADMIN PASSWORD.", opts: [ { txt: "password123", icon: "🔓", safe: false }, { txt: "Tr0ub4dor&3", icon: "🛡️", safe: true }, { txt: "admin", icon: "❌", safe: false } ] },
+            { q: "INCOMING_TRANSMISSION...", context: "ALERT: EMAIL RECEIVED FROM 'support@g00gle.com'.\nACTION REQUIRED:", opts: [ { txt: "Reply With Data", icon: "📤", safe: false }, { txt: "Ignore & Report", icon: "🚨", safe: true }, { txt: "Click Link", icon: "🔗", safe: false } ] },
+            { q: "SECURITY_LAYER_UPGRADE...", context: "SYSTEM QUERY: ENABLE 2-FACTOR AUTHENTICATION FOR ROOT ACCESS?", opts: [ { txt: "Yes, Always", icon: "📲", safe: true }, { txt: "No, Too Slow", icon: "🐌", safe: false }, { txt: "Only for Bank", icon: "🏦", safe: false } ] },
+            { q: "DETECTED_UNKNOWN_DRIVE...", context: "SYSTEM ALERT: STRANGE USB DRIVE FOUND IN PARKING LOT.\nACTION REQUIRED:", opts: [ { txt: "Plug in to Check", icon: "🔌", safe: false }, { txt: "Report to IT", icon: "👮", safe: true }, { txt: "Throw in Trash", icon: "🗑️", safe: false } ] },
+            { q: "NETWORK_CONNECTION_REQUEST...", context: "ENVIRONMENT: COFFEE SHOP PUBLIC WI-FI.\nTASK: ACCESS BANK ACCOUNT.", opts: [ { txt: "Connect Directly", icon: "📶", safe: false }, { txt: "Use VPN Tunnel", icon: "🔒", safe: true }, { txt: "Ask Staff Pass", icon: "🗣️", safe: false } ] },
+            { q: "BROWSER_ALERT_POPUP...", context: "ALERT: 'YOUR PC IS INFECTED! CLICK TO SCAN'.\nACTION REQUIRED:", opts: [ { txt: "Click Scan", icon: "🖱️", safe: false }, { txt: "Download Fix", icon: "📥", safe: false }, { txt: "Force Close Tab", icon: "❌", safe: true } ] },
+            { q: "PHYSICAL_SECURITY_CHECK...", context: "STATUS: STEPPING AWAY FROM DESK FOR LUNCH.\nPROTOCOL:", opts: [ { txt: "Leave Open", icon: "👀", safe: false }, { txt: "Turn Off Monitor", icon: "⬛", safe: false }, { txt: "Lock Screen (Win+L)", icon: "🔐", safe: true } ] },
+            { q: "OS_PATCH_AVAILABLE...", context: "SYSTEM NOTIFICATION: CRITICAL SECURITY UPDATE READY.\nACTION:", opts: [ { txt: "Update Immediately", icon: "🔄", safe: true }, { txt: "Remind Next Month", icon: "📅", safe: false }, { txt: "Ignore Warning", icon: "🙈", safe: false } ] }
+        ];
+        let loginIdx = 0; let currentLoginQueue = [];
+        function startLoginPuzzle() { loginIdx = 0; currentLoginQueue = [...loginScenarioPool].sort(() => Math.random() - 0.5).slice(0, 3); document.getElementById('lp-terminal-text').textContent = ""; document.getElementById('lp-opts').innerHTML = ""; document.getElementById('lp-visual-feedback').textContent = ""; document.getElementById('lp-visual-feedback').className = "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl opacity-0 transition-opacity duration-500 pointer-events-none"; const btn = document.getElementById('lp-end-btn'); btn.textContent = "Abort Mission"; btn.className = "btn btn-cyan mt-4 w-full"; loadLoginLevel(); }
+        function typeWriter(text, elementId, speed = 30) { let i = 0; const element = document.getElementById(elementId); element.textContent = ""; function type() { if (i < text.length) { element.textContent += text.charAt(i); i++; setTimeout(type, speed); } } type(); }
+        function loadLoginLevel() {
+        if(loginIdx >= currentLoginQueue.length) { 
+                typeWriter("SYSTEM SECURE.\nALL THREATS NEUTRALIZED.\nACCESS GRANTED.", 'lp-terminal-text'); 
+                document.getElementById('lp-opts').innerHTML = ""; 
+                const btn = document.getElementById('lp-end-btn'); 
+                btn.textContent = "Complete Mission"; 
+                btn.className = "btn btn-green mt-4 w-full"; 
+                
+                // AWARD XP (Only call this once)
+                if(!btn.dataset.awarded) {
+                    awardGameXP('Login Defense', 0, 'completion');
+                    btn.dataset.awarded = "true"; // Prevent double XP on re-clicks
+                }
+                return; 
+            }            
+            
+            const lvl = currentLoginQueue[loginIdx]; const fullText = `> ${lvl.q}\n\n${lvl.context}`; typeWriter(fullText, 'lp-terminal-text', 20); const div = document.getElementById('lp-opts'); div.innerHTML = "";
+            setTimeout(() => { lvl.opts.forEach((o) => { const btn = document.createElement('div'); btn.className = "lp-option-card rounded p-3 text-center text-cyan-300 flex flex-col items-center gap-2"; btn.innerHTML = `<span class="text-2xl">${o.icon}</span><span class="text-xs font-bold">${o.txt}</span>`; btn.onclick = () => checkLoginAnswer(o.safe); div.appendChild(btn); }); }, fullText.length * 20 + 200);
+        }
+        function checkLoginAnswer(isSafe) {
+            const feedbackEl = document.getElementById('lp-visual-feedback'); const termEl = document.getElementById('lp-terminal-text'); document.getElementById('lp-opts').innerHTML = "";
+            if(isSafe) { feedbackEl.textContent = "🛡️"; feedbackEl.classList.remove('opacity-0'); termEl.textContent += "\n\n> PROTOCOL ACCEPTED.\n> SECURITY INCREASED."; setTimeout(() => { feedbackEl.classList.add('opacity-0'); loginIdx++; loadLoginLevel(); }, 1500); } 
+            else { feedbackEl.textContent = "⚠️"; feedbackEl.classList.remove('opacity-0'); termEl.textContent += "\n\n> ERROR: SECURITY BREACH DETECTED.\n> RETRYING..."; termEl.classList.add('text-red-400'); setTimeout(() => { feedbackEl.classList.add('opacity-0'); termEl.classList.remove('text-red-400'); loadLoginLevel(); }, 1500); }
+        }
+
+        // 4. Decryptor
+        const decryptPool = [{ t: "HELLO", c: "KHOOR", s: 3 }, { t: "SECURE", c: "XJHZWJ", s: 5 }, { t: "DATA", c: "FCVC", s: 2 }, { t: "ADMIN", c: "DGPLQ", s: 3 }, { t: "PASS", c: "UFXX", s: 5 }, { t: "FIREWALL", c: "HKTGYCNN", s: 2 }, { t: "ZERO", c: "CHUR", s: 3 }, { t: "HACK", c: "KDFN", s: 3 }, { t: "CODE", c: "HTIJ", s: 5 }, { t: "BYTE", c: "DAVG", s: 2 }];
+        let decryptQueue = [], decryptProgress = 0, currentCipher = null; const MAX_DECRYPTS = 5;
+        function startDecryptor() { decryptProgress = 0; decryptQueue = [...decryptPool].sort(() => 0.5 - Math.random()).slice(0, MAX_DECRYPTS); const btn = document.getElementById('dc-end-btn'); btn.textContent = "Abort Decryption"; btn.className = "btn btn-cyan mt-4 w-full"; loadDecrypt(); }
+        function loadDecrypt() {
+            if (decryptProgress >= MAX_DECRYPTS) { 
+                document.getElementById('dc-cipher').textContent = "SYSTEM_CLEAN"; 
+                document.getElementById('dc-feedback').textContent = "ALL MESSAGES DECRYPTED"; 
+                document.getElementById('dc-feedback').className = "mt-4 font-bold h-6 text-center text-green-400"; 
+                document.getElementById('dc-opts').innerHTML = ""; 
+                document.getElementById('dc-shift-display').textContent = "COMPLETE"; 
+                document.getElementById('dc-ref-guide').innerHTML = ""; 
+                const btn = document.getElementById('dc-end-btn'); 
+                btn.textContent = "Complete Mission"; 
+                btn.className = "btn btn-green mt-4 w-full"; 
+                
+                // AWARD XP
+                if(!btn.dataset.awarded) {
+                    awardGameXP('Cryptanalysis', 0, 'completion');
+                    btn.dataset.awarded = "true"; 
+                }
+                
+                return; 
+            }
+        }
+        function checkDecrypt(btn, val) {
+            const feedback = document.getElementById('dc-feedback'); btn.textContent = "DECODING...";
+            setTimeout(() => { if(val === currentCipher.t) { btn.textContent = val; btn.classList.add('correct'); feedback.textContent = "DECRYPTION SUCCESSFUL"; feedback.className = "mt-4 font-bold h-6 text-center text-green-400"; setTimeout(() => { decryptProgress++; loadDecrypt(); }, 1500); } else { btn.textContent = "INVALID"; btn.classList.add('wrong'); feedback.textContent = "KEY MISMATCH - RETRY"; feedback.className = "mt-4 font-bold h-6 text-center text-red-400"; setTimeout(() => { btn.textContent = val; btn.classList.remove('wrong'); }, 1000); } }, 500);
+        }
+        function nextDecrypt() {}
+
+        // 5. Network
+        let netScore = 0;
+        function startNetworkGame() {
+            netScore = 50; document.getElementById('net-score').textContent = netScore; document.getElementById('net-start').classList.add('hidden');
+            const grid = document.getElementById('net-grid'); grid.innerHTML = "";
+            for(let i=0; i<9; i++) { let cell = document.createElement('div'); cell.className = "bg-green-500/30 border border-green-500 h-16 rounded flex items-center justify-center text-2xl transition duration-500"; cell.id = `net-node-${i}`; cell.dataset.status = "safe"; cell.textContent = "🛡️"; cell.onclick = () => healNode(cell); grid.appendChild(cell); }
+            let time = 30;
+window.netInterval = setInterval(() => { 
+                time--; 
+                document.getElementById('net-timer').textContent = time; 
+                if(Math.random() > 0.5) infectNode(); 
+                if(netScore <= 0 || time <= 0) { 
+                    clearInterval(window.netInterval); 
+                    const won = netScore > 0;
+                    document.getElementById('net-msg').textContent = won ? "Network Saved!" : "Network Crushed!"; 
+                    document.getElementById('net-start').classList.remove('hidden'); 
+                    
+                    // AWARD XP ONLY IF WON (Score is the metric)
+                    if(won) {
+                        awardGameXP('Network Defense', netScore, 'score');
+                    }
+                } 
+            }, 1000);        
+        }
+        function infectNode() { const idx = Math.floor(Math.random()*9); const cell = document.getElementById(`net-node-${idx}`); if(cell.dataset.status === "safe") { cell.dataset.status = "infected"; cell.className = "bg-red-500/50 border border-red-500 h-16 rounded flex items-center justify-center text-2xl animate-pulse cursor-pointer"; cell.textContent = "🦠"; netScore -= 5; document.getElementById('net-score').textContent = netScore; } }
+        function healNode(cell) { if(cell.dataset.status === "infected") { cell.dataset.status = "safe"; cell.className = "bg-green-500/30 border border-green-500 h-16 rounded flex items-center justify-center text-2xl transition duration-500"; cell.textContent = "🛡️"; netScore += 5; document.getElementById('net-score').textContent = netScore; } }
+
+        // 6. Safe Clicks
+        let clickScore = 0;
+        const scanPool = [{ txt: "google.com", safe: true, type: "🌐" }, { txt: "tup.edu.ph", safe: true, type: "🎓" }, { txt: "github.com", safe: true, type: "💻" }, { txt: "free-iphone.net", safe: false, type: "🎁" }, { txt: "verify-bank.xyz", safe: false, type: "🏦" }, { txt: "urgent-update.exe", safe: false, type: "⚙️" }, { txt: "irs-refund.com", safe: false, type: "💰" }, { txt: "wikipedia.org", safe: true, type: "📚" }, { txt: "login-facbook.tk", safe: false, type: "👥" }, { txt: "amazon-alert.site", safe: false, type: "📦" }, { txt: "canvas.instructure.com", safe: true, type: "🏫" }, { txt: "stackoverflow.com", safe: true, type: "⌨️" }];
+        function startSafeClicks() {
+            clickScore = 0; document.getElementById('sc-score').textContent = 0; document.getElementById('sc-start').classList.add('hidden');
+            const grid = document.getElementById('sc-grid'); grid.innerHTML = "";
+            let roundItems = [...scanPool].sort(() => 0.5 - Math.random()).slice(0, 9);
+            roundItems.forEach(item => {
+                const card = document.createElement('div'); card.className = "sc-card"; card.innerHTML = `<div class="sc-scan-line"></div><div class="text-4xl mb-2">${item.type}</div><div class="text-xs font-mono text-center mb-4 break-all">${item.txt}</div><button class="btn btn-blue text-xs w-full py-1">SCAN</button>`;
+                const btn = card.querySelector('button');
+                btn.onclick = () => {
+                    btn.onclick = null; btn.textContent = "SCANNING..."; card.classList.add('scanning');
+                    setTimeout(() => {
+                        card.classList.remove('scanning');
+                        if(item.safe) { clickScore += 10; card.classList.add('safe-confirmed'); btn.className = "btn btn-green text-xs w-full py-1 cursor-default"; btn.textContent = "VERIFIED SAFE"; } 
+                        else { clickScore -= 10; card.classList.add('threat-detected'); btn.className = "btn btn-red text-xs w-full py-1 cursor-default"; btn.textContent = "THREAT BLOCKED"; }
+                        document.getElementById('sc-score').textContent = clickScore;
+                    }, 600);
+                };
+                grid.appendChild(card);
+            });
+            let time = 30; const timerEl = document.getElementById('sc-timer'); if(window.clickInterval) clearInterval(window.clickInterval);
+            window.clickInterval = setInterval(() => { 
+                time--; 
+                timerEl.textContent = time; 
+            
+                if(time <= 0) { 
+                    clearInterval(window.clickInterval); 
+                    document.getElementById('sc-start').textContent = `Scan Complete! Score: ${clickScore}`; 
+                    document.getElementById('sc-start').classList.remove('hidden'); 
+                    
+                    const remainingBtns = grid.querySelectorAll('button:not(.btn-green):not(.btn-red)'); 
+                    remainingBtns.forEach(b => { b.disabled = true; b.textContent = "TIMEOUT"; }); 
+                    
+                    // AWARD XP - Uses the final clickScore as the metric
+                    awardGameXP('Link Scanner', clickScore, 'score');
+                } 
+            }, 1000);
+        
+        }
+
+        // 7. Policy Prioritizer (M7)
+        const policies = [
+            { text: "Require 12-character passwords with special symbols.", good: true },
+            { text: "Allow employees to share passwords for team access.", good: false },
+            { text: "Implement mandatory 2-Factor Authentication for admins.", good: true },
+            { text: "Disable automatic screen locks to save time.", good: false },
+            { text: "Encrypt all sensitive customer data at rest.", good: true },
+            { text: "Use default factory passwords on new routers.", good: false },
+            { text: "Conduct quarterly phishing simulation tests.", good: true },
+            { text: "Allow personal USB drives on company servers.", good: false }
+        ];
+        let ppQueue = [], ppScore = 0, ppIndex = 0;
+
+        function startPolicyGame() {
+            ppScore = 0; ppIndex = 0;
+            // FIXED: Ensure we pick exactly 5 and reset UI correctly
+            ppQueue = [...policies].sort(() => 0.5 - Math.random()).slice(0, 5); 
+            updatePolicyUI();
+            document.getElementById("pp-feedback").textContent = "";
+            document.getElementById("pp-score").textContent = "0";
+            
+            // Reset button to "Exit Office" state
+            const btn = document.getElementById("pp-end-btn");
+            btn.textContent = "Exit Office";
+            btn.className = "btn btn-cyan mt-4 w-full";
+        }
+
+        function updatePolicyUI() {
+            if (ppIndex >= ppQueue.length) {
+                document.getElementById("pp-card").innerHTML = "<span class='text-green-400'>ALL POLICIES REVIEWED</span>";
+                const btn = document.getElementById("pp-end-btn");
+                btn.textContent = "Complete Mission";
+                btn.className = "btn btn-green mt-4 w-full";
+                
+                // AWARD XP
+                if(!btn.dataset.awarded) {
+                    awardGameXP('Policy Admin', ppScore, 'score');
+                    btn.dataset.awarded = "true";
+                }
+                return;
+            }
+            document.getElementById("pp-card").textContent = ppQueue[ppIndex].text;
+        }
+
+        function handlePolicyChoice(approved) {
+            if (ppIndex >= ppQueue.length) return;
+            const current = ppQueue[ppIndex];
+            const feedback = document.getElementById("pp-feedback");
+            
+            // Logic: Approve GOOD or Reject BAD = Correct
+            const isCorrect = (approved && current.good) || (!approved && !current.good);
+
+            if (isCorrect) {
+                ppScore += 20;
+                feedback.textContent = "CORRECT DECISION ✅";
+                feedback.className = "mt-4 text-center h-6 font-bold text-green-400";
+            } else {
+                feedback.textContent = "INCORRECT JUDGMENT ❌";
+                feedback.className = "mt-4 text-center h-6 font-bold text-red-400";
+            }
+            
+            document.getElementById("pp-score").textContent = ppScore;
+            ppIndex++;
+            setTimeout(() => {
+                feedback.textContent = "";
+                updatePolicyUI();
+            }, 800);
+        }
+
+        // 8. Incident Race (M8) - FIXED & REVISED
+        const incidentQs = [
+            { q: "Ransomware Detected!", a: "Isolate System", b: "Pay Ransom", correct: "a" },
+            { q: "Phishing Email Found!", a: "Delete Immediately", b: "Report to IT", correct: "b" },
+            { q: "Server Overheating!", a: "Ignore Warning", b: "Check Cooling", correct: "b" },
+            { q: "Unauthorized Access!", a: "Lock Account", b: "Monitor Only", correct: "a" },
+            { q: "Data Leak Reported!", a: "Hide Evidence", b: "Notify Legal", correct: "b" },
+            { q: "SQL Injection Attack!", a: "Patch Input Fields", b: "Shut Down Internet", correct: "a" },
+            { q: "Weak Password Found!", a: "Force Reset", b: "Let User Know Later", correct: "a" },
+            { q: "DDoS Attack!", a: "Enable Rate Limiting", b: "Fight Back", correct: "a" }
+        ];
+        let irTeamProg = 0, irHackProg = 0, irActive = false, irQueue = [];
+
+        function startIncidentRace() {
+            irTeamProg = 0; irHackProg = 0; irActive = true;
+            // FIXED: Shuffle full deck every start
+            irQueue = [...incidentQs].sort(() => 0.5 - Math.random()); 
+            
+            document.getElementById("ir-start-btn").classList.add("hidden");
+            
+            // FIXED: Reset HTML Structure so IDs exist for populating
+            const qContainer = document.getElementById("ir-question-area");
+            qContainer.innerHTML = `
+                <div class="w-full bg-black/40 border border-cyan-500/30 rounded-lg p-6 mb-4 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+                    <h3 id="ir-q" class="text-xl font-bold mb-6 min-h-[3rem] text-cyan-100 flex items-center justify-center"></h3>
+                    <div id="ir-opts" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                </div>
+            `;
+            
+            updateIncidentBars();
+            loadIncidentQuestion();
+            
+            // Hacker progress loop
+            if (window.incidentInterval) clearInterval(window.incidentInterval);
+            window.incidentInterval = setInterval(() => {
+                if (!irActive) return;
+                irHackProg += 2; // Hackers speed
+                if (irHackProg >= 100) endIncidentRace(false);
+                updateIncidentBars();
+            }, 500); // Speed of hacker bar update
+        }
+
+        function updateIncidentBars() {
+            document.getElementById("ir-team-prog").textContent = irTeamProg;
+            document.getElementById("ir-bar-team").style.width = `${irTeamProg}%`;
+            document.getElementById("ir-hack-prog").textContent = irHackProg;
+            document.getElementById("ir-bar-hack").style.width = `${irHackProg}%`;
+        }
+
+        function loadIncidentQuestion() {
+            if(irQueue.length === 0) irQueue = [...incidentQs].sort(() => 0.5 - Math.random()); // Reload if exhausted
+            
+            const qObj = irQueue.pop();
+            document.getElementById("ir-q").textContent = qObj.q;
+            const optsDiv = document.getElementById("ir-opts");
+            
+            // FIXED: Answers wrapped in containers
+            optsDiv.innerHTML = `
+                <div class="p-1 border border-cyan-500/30 rounded bg-cyan-900/10 hover:bg-cyan-900/30 transition transform hover:-translate-y-1">
+                    <button class="btn btn-blue w-full h-full py-4 text-sm font-bold tracking-wider" onclick="handleIncidentAnswer('${qObj.correct === 'a'}')">${qObj.a}</button>
+                </div>
+                <div class="p-1 border border-cyan-500/30 rounded bg-cyan-900/10 hover:bg-cyan-900/30 transition transform hover:-translate-y-1">
+                    <button class="btn btn-blue w-full h-full py-4 text-sm font-bold tracking-wider" onclick="handleIncidentAnswer('${qObj.correct === 'b'}')">${qObj.b}</button>
+                </div>
+            `;
+        }
+
+        function handleIncidentAnswer(isCorrect) {
+            if (!irActive) return;
+            if (isCorrect === 'true') {
+                irTeamProg += 20; // Team boost
+                if (irTeamProg >= 100) endIncidentRace(true);
+            } else {
+                irHackProg += 15; // Penalty
+            }
+            updateIncidentBars();
+            if(irActive) loadIncidentQuestion();
+        }
+
+        function endIncidentRace(win) {
+            irActive = false;
+            clearInterval(window.incidentInterval);
+            const qContainer = document.getElementById("ir-question-area");
+            if (win) {
+                qContainer.innerHTML = `
+                    <div class="p-6 bg-green-900/30 border border-green-500 rounded-lg">
+                        <h3 class="text-3xl text-green-400 font-bold mb-2">BREACH CONTAINED! 🏆</h3>
+                        <p class="text-green-200">System Integrity Restored.</p>
+                    </div>`;
+                
+                // AWARD XP: Uses 0 for metric with 'completion' type
+                awardGameXP('Incident Response', 0, 'completion');
+            } else {
+                qContainer.innerHTML = `
+                    <div class="p-6 bg-red-900/30 border border-red-500 rounded-lg">
+                        <h3 class="text-3xl text-red-400 font-bold mb-2">SYSTEM COMPROMISED 💀</h3>
+                        <p class="text-red-200">Hackers won the race.</p>
+                    </div>`;
+            }
+            document.getElementById("ir-start-btn").textContent = "RETRY SIMULATION";
+            document.getElementById("ir-start-btn").classList.remove("hidden");
+        }
+
+        // 9. Ethics Quiz (M9) - EXPANDED & RANDOMIZED
+        const ethicsScenarios = [
+            { 
+                text: "You find a coworker's unlocked PC with salary data visible. What do you do?", 
+                opts: ["Peek quickly", "Log them out & Note", "Ignore it"], 
+                feedback: ["Unethical/Illegal.", "Correct. Protects data privacy.", "Passive risk, but better than peeking."],
+                correct: 1
+            },
+            { 
+                text: "A friend asks you to 'test' their ex's password. Is this legal?", 
+                opts: ["Yes, if they don't know", "No, it's hacking", "Only if you succeed"], 
+                feedback: ["Illegal access is a crime.", "Correct. Unauthorized access is illegal.", "Outcome doesn't change legality."],
+                correct: 1
+            },
+            { 
+                text: "You discover a zero-day vulnerability in a popular app.", 
+                opts: ["Sell it on Dark Web", "Responsible Disclosure", "Post on Twitter immediately"], 
+                feedback: ["Illegal black hat activity.", "Correct. Notify vendor first.", "Irresponsible. Exposes users before fix."],
+                correct: 1
+            },
+            { 
+                text: "Your boss asks you to install cracked software to save money.", 
+                opts: ["Install it quietly", "Refuse and explain risks", "Report anonymously"], 
+                feedback: ["Illegal copyright infringement.", "Correct. Upholds legal and ethical standards.", "Valid, but direct refusal is better first step."],
+                correct: 1
+            },
+            { 
+                text: "You accidentally receive an email with confidential client data.", 
+                opts: ["Delete and notify sender", "Save a copy just in case", "Forward to your team"], 
+                feedback: ["Correct. Mitigates data leak.", "Unethical data retention.", "Spreads the breach further."],
+                correct: 0
+            },
+            { 
+                text: "You see a friend using company servers to mine crypto.", 
+                opts: ["Join them", "Ignore it", "Report to security"], 
+                feedback: ["Theft of resources.", "Complicit in policy violation.", "Correct. Protects company assets."],
+                correct: 2
+            },
+            { 
+                text: "A stranger offers you a free USB drive outside the office.", 
+                opts: ["Plug it in to check files", "Take it home", "Hand it to security team"], 
+                feedback: ["High risk of malware.", "Risks your personal device.", "Correct. Safe disposal/analysis."],
+                correct: 2
+            },
+            { 
+                text: "You need to send sensitive data but the VPN is down.", 
+                opts: ["Send via personal Gmail", "Wait for VPN fix", "Upload to public cloud"], 
+                feedback: ["Data leak risk.", "Correct. Security over speed.", "Unauthorized disclosure risk."],
+                correct: 1
+            }
+        ];
+        
+        let eqIndex = 0;
+        let eqQueue = [];
+
+        function startEthicsGame() {
+            eqIndex = 0;
+            // Shuffle and pick 5 random scenarios
+            eqQueue = [...ethicsScenarios].sort(() => 0.5 - Math.random()).slice(0, 5);
+            
+            // Reset UI components
+            document.getElementById("eq-end-btn").textContent = "Exit Court";
+            document.getElementById("eq-end-btn").className = "btn btn-cyan mt-4 w-full";
+            document.getElementById("eq-next").classList.add("hidden");
+            
+            loadEthicsScenario();
+        }
+
+        function loadEthicsScenario() {
+            if (eqIndex >= eqQueue.length) {
+                document.getElementById("eq-scenario").innerHTML = "<span class='text-green-400'>ALL CASES ADJUDICATED. YOU HAVE ACTED WITH INTEGRITY.</span>";
+                document.getElementById("eq-opts").innerHTML = "";
+                document.getElementById("eq-feedback").classList.add("hidden");
+                
+                // Change Exit button to Complete
+                const btn = document.getElementById("eq-end-btn");
+                btn.textContent = "Complete Mission";
+                btn.className = "btn btn-green mt-4 w-full";
+                
+                // AWARD XP
+                // Uses 0 for metric with 'completion' type (Base 40 + Bonus 20)
+                if(!btn.dataset.awarded) {
+                    awardGameXP('Ethics Quiz', 0, 'completion');
+                    btn.dataset.awarded = "true";
+                }
+                
+                return;
+            }
+            
+            const scen = eqQueue[eqIndex];
+            document.getElementById("eq-scenario").textContent = scen.text;
+            document.getElementById("eq-feedback").classList.add("hidden");
+            
+            const div = document.getElementById("eq-opts");
+            div.innerHTML = "";
+            
+            scen.opts.forEach((opt, i) => {
+                const btn = document.createElement("button");
+                btn.className = "btn btn-cyan w-full text-left p-3 hover:scale-105 transition-transform";
+                btn.textContent = opt;
+                btn.onclick = () => handleEthicsChoice(i, scen);
+                div.appendChild(btn);
+            });
+        }
+
+        function handleEthicsChoice(choiceIdx, scen) {
+            const feedbackEl = document.getElementById("eq-feedback");
+            feedbackEl.textContent = scen.feedback[choiceIdx];
+            
+            // Visual feedback styling
+            if (choiceIdx === scen.correct) {
+                feedbackEl.className = "mt-4 p-3 bg-green-900/40 rounded border border-green-500 text-sm text-green-300";
+            } else {
+                feedbackEl.className = "mt-4 p-3 bg-red-900/40 rounded border border-red-500 text-sm text-red-300";
+            }
+            
+            feedbackEl.classList.remove("hidden");
+            
+            // Disable buttons after choice
+            const btns = document.getElementById("eq-opts").querySelectorAll("button");
+            btns.forEach(b => b.disabled = true);
+            
+            document.getElementById("eq-next").classList.remove("hidden");
+        }
+
+        function nextEthics() {
+            eqIndex++;
+            document.getElementById("eq-next").classList.add("hidden");
+            loadEthicsScenario();
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
