@@ -234,22 +234,21 @@
                 </div>
             </div>
         </div>
-    
-        <div id="otp-verify-container" class="hidden">
-    <p class="text-sm text-green-400 mb-2 font-bold">PASSWORD ACCEPTED</p>
-    <p class="text-xs text-yellow-200 mb-4 animate-pulse">2FA CODE SENT TO EMAIL</p>
-    
-    <input id="otp-code-input" type="text" placeholder="######" class="w-full mb-4 p-3 rounded bg-black/50 border border-yellow-400 text-center text-2xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
-    
-    <div class="flex justify-between text-xs mb-4 font-mono">
-        <span class="text-gray-400">Code valid for: <span id="login-otp-timer" class="text-cyan-400">60s</span></span>
-        <button id="login-resend-btn" class="text-gray-500 cursor-not-allowed underline" disabled>Resend Code</button>
-    </div>
 
-    <div class="auth-item-container mb-3">
-        <button id="verify-otp-btn" class="btn btn-green w-full font-bold text-lg">VERIFY IDENTITY</button>
+        <div id="otp-verify-container" class="hidden">
+            <p class="text-sm text-green-400 mb-2 font-bold">PASSWORD ACCEPTED</p>
+            <p class="text-xs text-yellow-200 mb-4 animate-pulse">2FA CODE SENT TO EMAIL</p>
+            
+            <input id="otp-code-input" type="text" placeholder="######" class="w-full mb-4 p-3 rounded bg-black/50 border border-yellow-400 text-center text-2xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+            
+            <div class="auth-item-container mb-3">
+                <button id="verify-otp-btn" class="btn btn-green w-full font-bold text-lg">VERIFY IDENTITY</button>
+            </div>
+            <button id="cancel-otp-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Cancel Transaction</button>
+        </div>
+
+        <p id="login-msg" class="mt-4 text-sm text-cyan-400 font-bold min-h-[20px]"></p>
     </div>
-    <button id="cancel-otp-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Cancel Transaction</button>
 </div>
 
     <div id="hud" class="hud glow rounded-2xl p-4 sm:p-8 w-[95%] max-w-7xl mx-auto my-5 sm:my-10 relative z-10 transition-all duration-300">
@@ -340,17 +339,18 @@
                 </div>
 
                 <div id="signup-otp-container" class="hidden text-center">
-    <h3 class="text-2xl font-bold mb-2 text-yellow-400 animate-pulse">VERIFY EMAIL</h3>
-    <p class="text-xs text-gray-300 mb-6">Enter the code sent to your TUP email to activate your account and enable 2FA.</p>
-    
-    <input id="signup-otp-input" type="text" placeholder="######" class="w-full mb-6 p-4 rounded bg-black/50 border border-yellow-400 text-center text-3xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
-    
-    <div class="flex justify-between text-xs mb-4 font-mono text-left w-full">
-        <span class="text-gray-400">Expires in: <span id="signup-otp-timer" class="text-yellow-400">60s</span></span>
-        <button id="signup-resend-btn" class="text-gray-500 cursor-not-allowed underline" disabled>Resend Email</button>
-    </div>
+                    <h3 class="text-2xl font-bold mb-2 text-yellow-400 animate-pulse">VERIFY EMAIL</h3>
+                    <p class="text-xs text-gray-300 mb-6">Enter the code sent to your TUP email to activate your account and enable 2FA.</p>
+                    
+                    <input id="signup-otp-input" type="text" placeholder="######" class="w-full mb-6 p-4 rounded bg-black/50 border border-yellow-400 text-center text-3xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+                    
+                    <div class="auth-item-container mb-3">
+                        <button id="confirm-signup-btn" class="btn btn-green w-full py-3 font-bold text-lg">ACTIVATE ACCOUNT</button>
+                    </div>
+                    <button id="back-signup-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Wrong Email? Go Back</button>
+                </div>
 
-</div>
+                <p id="signup-msg" class="mt-4 text-center text-sm font-bold min-h-[1.5rem]"></p>
             </div>
         </div>
     </div>
@@ -1069,40 +1069,6 @@
                 name: "Ethical Hacker", desc: "Completed Ethics" 
             } // Star
         };
-
-
-        let otpTimerInterval;
-
-function startOtpTimer(duration, timerDisplayId, btnId) {
-    let timer = duration;
-    const display = document.getElementById(timerDisplayId);
-    const btn = document.getElementById(btnId);
-
-    // Safety check: Stop if elements are missing
-    if (!display || !btn) return; 
-
-    // Reset UI state
-    clearInterval(otpTimerInterval);
-    btn.disabled = true;
-    btn.classList.add("text-gray-500", "cursor-not-allowed");
-    btn.classList.remove("text-cyan-400", "hover:text-white", "cursor-pointer");
-    display.textContent = timer + "s";
-
-    otpTimerInterval = setInterval(() => {
-        timer--;
-        display.textContent = timer + "s";
-
-        if (timer <= 0) {
-            clearInterval(otpTimerInterval);
-            // Enable Resend Button
-            btn.disabled = false;
-            btn.textContent = "Resend Code";
-            btn.classList.remove("text-gray-500", "cursor-not-allowed");
-            btn.classList.add("text-cyan-400", "hover:text-white", "cursor-pointer");
-            display.textContent = "Expired";
-        }
-    }, 1000);
-}
     
         // --- Core Application Data ---
         let currentUser = null, currentProfile = null, cachedModules = [];
@@ -1228,35 +1194,6 @@ document.getElementById("do-signup-btn").onclick = async () => {
         document.getElementById("signup-otp-container").classList.remove("hidden");
         document.getElementById("signup-otp-input").focus();
         msg.textContent = "";
-
-        // === NEW: Start Timer ===
-        startOtpTimer(60, "signup-otp-timer", "signup-resend-btn");
-
-        // === NEW: Attach Resend Click Listener ===
-        document.getElementById("signup-resend-btn").onclick = async () => {
-            const btn = document.getElementById("signup-resend-btn");
-            // Reuse the email value from the parent scope
-            const email = document.getElementById("signup-email").value.trim();
-            
-            btn.textContent = "Sending...";
-            btn.disabled = true;
-
-            try {
-                // Supabase method to resend signup confirmation
-                const { error } = await supabase.auth.resend({
-                    type: 'signup',
-                    email: email
-                });
-                
-                if (error) throw error;
-                alert("Verification email resent to " + email);
-                startOtpTimer(60, "signup-otp-timer", "signup-resend-btn");
-            } catch (err) {
-                alert("Error: " + err.message);
-                btn.textContent = "Resend Email";
-                btn.disabled = false;
-            }
-        };
 
     } catch (err) { 
         msg.textContent = "Error: " + err.message; 
@@ -1454,40 +1391,28 @@ if (loginBtn) {
             if (otpError) throw otpError;
 
             // D. Switch UI to OTP Mode
-        document.getElementById("login-fields-container").classList.add("hidden");
-        
-        // Reveal the container (Do NOT use innerHTML, or you will delete the Timer)
-        document.getElementById("otp-verify-container").classList.remove("hidden");
-
-        // 1. Initialize the existing Verify/Cancel buttons
-        if (typeof attachOtpListeners === "function") {
-            attachOtpListeners();
-        }
-
-        // 2. Start the Timer
-        startOtpTimer(60, "login-otp-timer", "login-resend-btn");
-
-        // 3. Attach the Resend Listener
-        document.getElementById("login-resend-btn").onclick = async () => {
-            const btn = document.getElementById("login-resend-btn");
-            btn.textContent = "Sending...";
-            btn.disabled = true;
+            document.getElementById("login-fields-container").classList.add("hidden");
             
-            try {
-                // Reuse the email variable from the parent scope
-                const { error } = await supabase.auth.signInWithOtp({ email: email });
-                if (error) throw error;
+            // Show OTP Container
+            const otpContainer = document.getElementById("otp-verify-container");
+            otpContainer.classList.remove("hidden");
+            
+            // Update the message inside the OTP container
+            otpContainer.innerHTML = `
+                <p class="text-sm text-cyan-400 mb-2 font-bold">PASSWORD VERIFIED</p>
+                <p class="text-xs text-yellow-200 mb-4 animate-pulse">A verification code has been sent to your TUP email.</p>
                 
-                alert("New code sent to " + email);
-                startOtpTimer(60, "login-otp-timer", "login-resend-btn"); 
-            } catch (err) {
-                alert("Error sending code: " + err.message);
-                btn.textContent = "Resend Code";
-                btn.disabled = false;
-            }
-        };
-        
-        document.getElementById("otp-code-input").focus();
+                <input id="otp-code-input" type="text" placeholder="######" class="w-full mb-4 p-3 rounded bg-black/50 border border-yellow-400 text-center text-2xl tracking-[0.5em] font-mono focus:outline-none text-yellow-300" maxlength="6" />
+                
+                <div class="auth-item-container mb-3">
+                    <button id="verify-otp-btn" class="btn btn-green w-full font-bold text-lg">VERIFY & SIGN IN</button>
+                </div>
+                <button id="cancel-otp-btn" class="text-xs text-cyan-500 underline hover:text-white mt-2">Cancel</button>
+            `;
+
+            // Re-attach event listeners for the new elements we just injected
+            attachOtpListeners();
+            document.getElementById("otp-code-input").focus();
 
         } catch (err) { 
             msg.textContent = "Login Failed: " + err.message; 
